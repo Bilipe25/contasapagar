@@ -27,28 +27,21 @@ import { format, startOfMonth, endOfMonth, subMonths, addDays, isSameMonth } fro
 import { toast } from 'sonner'
 import { ConfirmDeleteDialog } from '@/components/contas/confirm-delete-dialog'
 
+type StatusFilter = 'todos' | 'ativa' | 'quitada' | 'cancelada' | 'vencidas'
+
 export default function ContasPage() {
     const searchParams = useSearchParams()
     const [isMounted, setIsMounted] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
-
-    useEffect(() => {
-        setIsMounted(true)
-
-        // Aplicar filtro de fornecedor da URL se presente
-        const fornecedorParam = searchParams.get('fornecedor')
-        if (fornecedorParam) {
-            setFiltroFornecedor(fornecedorParam)
-        }
-    }, [searchParams])
-
-
     const [isFormOpen, setIsFormOpen] = useState(false)
     const [editingConta, setEditingConta] = useState<string | null>(null)
     const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
     const [viewingContaId, setViewingContaId] = useState<string | null>(null)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [contaToDelete, setContaToDelete] = useState<{ id: string; descricao: string } | null>(null)
+
+    // Filtro especial para vencidas (não está no store, é local)
+    const [filtroVencidas, setFiltroVencidas] = useState(false)
 
     const {
         filtroStatus,
@@ -65,6 +58,28 @@ export default function ContasPage() {
         setVisualizacao,
         limparFiltros,
     } = useAppStore()
+
+    useEffect(() => {
+        setIsMounted(true)
+
+        // Aplicar filtro de fornecedor da URL se presente
+        const fornecedorParam = searchParams.get('fornecedor')
+        if (fornecedorParam) {
+            setFiltroFornecedor(fornecedorParam)
+        }
+
+        // Aplicar filtro de status da URL se presente
+        const statusParam = searchParams.get('status') as StatusFilter | null
+        if (statusParam) {
+            if (statusParam === 'vencidas') {
+                setFiltroStatus('ativa')
+                setFiltroVencidas(true)
+            } else if (['ativa', 'quitada', 'cancelada'].includes(statusParam)) {
+                setFiltroStatus(statusParam as 'ativa' | 'quitada' | 'cancelada')
+                setFiltroVencidas(false)
+            }
+        }
+    }, [searchParams, setFiltroFornecedor, setFiltroStatus])
 
     // Fetch data
     const { data: contasData, isLoading } = trpc.contas.list.useQuery({
@@ -129,15 +144,27 @@ export default function ContasPage() {
         setPeriodoFim(format(preset.end, 'yyyy-MM-dd'))
     }
 
-    // Filtrar por busca textual localmente
+    // Filtrar por busca textual e vencidas localmente
     const contasFiltradas = contasData?.filter(conta => {
-        if (!searchQuery) return true
-        const query = searchQuery.toLowerCase()
-        return (
-            conta.descricao?.toLowerCase().includes(query) ||
-            conta.fornecedores?.nome?.toLowerCase().includes(query) ||
-            conta.tipos_despesa?.nome?.toLowerCase().includes(query)
-        )
+        // Filtro de busca textual
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase()
+            const matchesSearch = (
+                conta.descricao?.toLowerCase().includes(query) ||
+                conta.fornecedores?.nome?.toLowerCase().includes(query) ||
+                conta.tipos_despesa?.nome?.toLowerCase().includes(query)
+            )
+            if (!matchesSearch) return false
+        }
+
+        // Filtro de vencidas (só mostrar se estiver ativa e vencida)
+        if (filtroVencidas) {
+            if (conta.status !== 'ativa') return false
+            if (!conta.proxima_parcela) return false
+            return isVencido(conta.proxima_parcela.data_vencimento)
+        }
+
+        return true
     }) || []
 
     const handleEdit = (id: string) => {
@@ -201,7 +228,7 @@ export default function ContasPage() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div className="hidden sm:block">
+                <div className="hidden sm:block lg:hidden">
                     <h1 className="text-3xl font-bold tracking-tight">Contas a Pagar</h1>
                     <p className="text-muted-foreground">
                         Gerencie suas contas e pagamentos
@@ -281,13 +308,25 @@ export default function ContasPage() {
                 {/* Filter Chips - Mobile Scroll / Desktop Grid */}
                 <div className="flex sm:grid sm:grid-cols-3 gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
                     {/* Status Filter */}
-                    <Select value={filtroStatus} onValueChange={(value: any) => setFiltroStatus(value)}>
+                    <Select
+                        value={filtroVencidas ? 'vencidas' : filtroStatus}
+                        onValueChange={(value: any) => {
+                            if (value === 'vencidas') {
+                                setFiltroStatus('ativa')
+                                setFiltroVencidas(true)
+                            } else {
+                                setFiltroStatus(value)
+                                setFiltroVencidas(false)
+                            }
+                        }}
+                    >
                         <SelectTrigger className="min-w-[120px] sm:min-w-0 h-9 text-xs sm:text-sm">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="todos">Todos os status</SelectItem>
                             <SelectItem value="ativa">Em Aberto</SelectItem>
+                            <SelectItem value="vencidas">Vencidas</SelectItem>
                             <SelectItem value="quitada">Quitada</SelectItem>
                             <SelectItem value="cancelada">Cancelada</SelectItem>
                         </SelectContent>

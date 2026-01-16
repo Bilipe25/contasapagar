@@ -59,8 +59,8 @@ export default function ConfiguracoesPage() {
 
     return (
         <div className="space-y-4 sm:space-y-6">
-            {/* Header - Desktop only */}
-            <div className="hidden sm:block">
+            {/* Header - Desktop only, hidden on lg+ where breadcrumbs are visible */}
+            <div className="hidden sm:block lg:hidden">
                 <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
                 <p className="text-muted-foreground">
                     Gerencie categorias de despesa e preferências do sistema

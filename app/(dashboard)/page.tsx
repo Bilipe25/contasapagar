@@ -37,7 +37,7 @@ export default function DashboardPage() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div className="hidden sm:block">
+                <div className="hidden sm:block lg:hidden">
                     <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
                     <p className="text-muted-foreground">
                         Visão geral das suas contas a pagar

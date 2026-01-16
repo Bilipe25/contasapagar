@@ -200,7 +200,7 @@ export default function FornecedoresPage() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="hidden sm:block">
+                <div className="hidden sm:block lg:hidden">
                     <h1 className="text-3xl font-bold tracking-tight">Fornecedores</h1>
                     <p className="text-muted-foreground">
                         Gerencie empresas e pessoas para quem você paga contas
