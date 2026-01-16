@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
 import { TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
 
 interface StatsCardsProps {
     stats?: {
@@ -15,7 +16,17 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats }: StatsCardsProps) {
+    const router = useRouter()
+
     if (!stats) return null
+
+    const handleCardClick = (filter?: string) => {
+        if (filter) {
+            router.push(`/contas?status=${filter}`)
+        } else {
+            router.push('/contas')
+        }
+    }
 
     const cards = [
         {
@@ -26,6 +37,8 @@ export function StatsCards({ stats }: StatsCardsProps) {
             color: 'text-blue-600 dark:text-blue-400',
             bgColor: 'bg-blue-100 dark:bg-blue-900/30',
             borderColor: 'border-l-blue-500',
+            filter: 'ativa',
+            clickable: true,
         },
         {
             title: 'Contas Vencidas',
@@ -36,6 +49,8 @@ export function StatsCards({ stats }: StatsCardsProps) {
             bgColor: 'bg-red-100 dark:bg-red-900/30',
             borderColor: 'border-l-red-500',
             highlight: stats.totalVencidas > 0,
+            filter: 'vencidas',
+            clickable: true,
         },
         {
             title: 'Total Pago',
@@ -45,6 +60,8 @@ export function StatsCards({ stats }: StatsCardsProps) {
             color: 'text-emerald-600 dark:text-emerald-400',
             bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
             borderColor: 'border-l-emerald-500',
+            filter: 'quitada',
+            clickable: true,
         },
         {
             title: 'Economia',
@@ -54,6 +71,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
             color: 'text-violet-600 dark:text-violet-400',
             bgColor: 'bg-violet-100 dark:bg-violet-900/30',
             borderColor: 'border-l-violet-500',
+            clickable: false,
         },
     ]
 
@@ -65,10 +83,21 @@ export function StatsCards({ stats }: StatsCardsProps) {
                     <Card
                         key={card.title}
                         className={cn(
-                            "border-l-2 lg:border-l-4 transition-all hover:shadow-md min-w-0 shadow-sm",
+                            "border-l-2 lg:border-l-4 transition-all min-w-0 shadow-sm",
                             card.borderColor,
-                            card.highlight && "animate-pulse"
+                            card.highlight && "animate-pulse",
+                            card.clickable && "cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                         )}
+                        onClick={() => card.clickable && handleCardClick(card.filter)}
+                        role={card.clickable ? "button" : undefined}
+                        tabIndex={card.clickable ? 0 : undefined}
+                        onKeyDown={(e) => {
+                            if (card.clickable && (e.key === 'Enter' || e.key === ' ')) {
+                                e.preventDefault()
+                                handleCardClick(card.filter)
+                            }
+                        }}
+                        aria-label={card.clickable ? `${card.title}: ${card.value}. Clique para ver detalhes.` : undefined}
                     >
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 lg:p-4 lg:pb-1.5">
                             <CardTitle className="text-[10px] lg:text-xs font-medium text-muted-foreground truncate uppercase tracking-wider">

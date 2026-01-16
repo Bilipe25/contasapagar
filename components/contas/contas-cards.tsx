@@ -18,16 +18,18 @@ import { useState } from 'react'
 import { MarcarPagoDialog } from './marcar-pago-dialog'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { ContaActionsSheet } from './conta-actions-sheet'
+import { EmptyStateNoContas } from '@/components/ui/empty-state'
 
 interface ContasCardsProps {
     contas: any[]
     onEdit: (id: string) => void
     onView?: (id: string) => void
+    onCreateClick?: () => void
 }
 
 const ITEMS_PER_PAGE = 10
 
-export function ContasCards({ contas, onEdit, onView }: ContasCardsProps) {
+export function ContasCards({ contas, onEdit, onView, onCreateClick }: ContasCardsProps) {
     const utils = trpc.useUtils()
     const [marcarPagoId, setMarcarPagoId] = useState<string | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
@@ -66,17 +68,7 @@ export function ContasCards({ contas, onEdit, onView }: ContasCardsProps) {
     }
 
     if (contas.length === 0) {
-        return (
-            <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed bg-muted/30">
-                <div className="text-center">
-                    <Calendar className="mx-auto h-10 w-10 text-muted-foreground" />
-                    <h3 className="mt-3 text-base font-semibold">Nenhuma conta encontrada</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Crie uma nova conta ou ajuste os filtros
-                    </p>
-                </div>
-            </div>
-        )
+        return <EmptyStateNoContas onCreateClick={onCreateClick} />
     }
 
     return (

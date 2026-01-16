@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ContaFormDialog } from '@/components/contas/conta-form-dialog'
+import { useKeyboardShortcuts } from '@/lib/hooks/use-keyboard-shortcuts'
 
 export default function DashboardPage() {
     const mesSelecionado = useAppStore((state) => state.mesSelecionado)
@@ -24,6 +25,13 @@ export default function DashboardPage() {
 
     const { data: vencimentosProximos, isLoading: vencimentosLoading } =
         trpc.dashboard.vencimentosProximos.useQuery()
+
+    // Atalhos de teclado
+    useKeyboardShortcuts({
+        shortcuts: [
+            { key: 'n', action: () => setIsFormOpen(true), description: 'Nova conta' },
+        ]
+    })
 
     return (
         <div className="space-y-6">
