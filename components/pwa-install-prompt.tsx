@@ -10,6 +10,14 @@ export function PwaInstallPrompt() {
     const [isIOS, setIsIOS] = useState(false)
 
     useEffect(() => {
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker
+                .register('/sw.js')
+                .then((registration) => console.log('Scope: ', registration.scope))
+                .catch((err) => console.log('SW Registration Failed: ', err))
+        }
+
         // Detectar se é iOS (já que iOS não dispara beforeinstallprompt)
         const userAgent = window.navigator.userAgent.toLowerCase()
         const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
