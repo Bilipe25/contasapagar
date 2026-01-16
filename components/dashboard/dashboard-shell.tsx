@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
+import { MobileBottomNav } from '@/components/navigation/mobile-bottom-nav'
 import { User } from '@supabase/supabase-js'
 
 const navigation = [
@@ -237,10 +238,13 @@ export function DashboardShell({ children, user }: { children: React.ReactNode; 
                 </header>
 
                 {/* Main Content */}
-                <main className="mx-auto max-w-screen-2xl px-6 py-8 sm:px-8 lg:px-12">
+                <main className="mx-auto max-w-screen-2xl px-6 py-8 sm:px-8 lg:px-12 pb-24 sm:pb-8">
                     <Breadcrumbs className="mb-4 hidden lg:flex" />
                     {children}
                 </main>
+
+                {/* Mobile Bottom Navigation */}
+                <MobileBottomNav />
             </div>
         </TooltipProvider>
     )

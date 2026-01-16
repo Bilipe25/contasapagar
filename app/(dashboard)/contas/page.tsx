@@ -79,6 +79,15 @@ export default function ContasPage() {
                 setFiltroVencidas(false)
             }
         }
+        // Verificar se deve abrir o formulário (vindo do bottom nav)
+        const actionParam = searchParams.get('action')
+        if (actionParam === 'new') {
+            setIsFormOpen(true)
+            // Limpar o parâmetro da URL sem recarregar a página
+            const url = new URL(window.location.href)
+            url.searchParams.delete('action')
+            window.history.replaceState({}, '', url)
+        }
     }, [searchParams, setFiltroFornecedor, setFiltroStatus])
 
     // Fetch data
@@ -239,16 +248,6 @@ export default function ContasPage() {
                     Nova Conta
                 </Button>
             </div>
-
-            {/* FAB Mobile */}
-            <Button
-                onClick={() => setIsFormOpen(true)}
-                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg sm:hidden z-50 p-0"
-                size="icon"
-                aria-label="Adicionar nova conta"
-            >
-                <Plus className="h-6 w-6" />
-            </Button>
 
             {/* Sticky Search Bar - Mobile Only */}
             <div className="sticky top-14 z-40 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b sm:hidden">

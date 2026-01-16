@@ -49,16 +49,6 @@ export default function DashboardPage() {
                 </Button>
             </div>
 
-            {/* FAB Mobile */}
-            <Button
-                onClick={() => setIsFormOpen(true)}
-                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg sm:hidden z-50 p-0"
-                size="icon"
-                aria-label="Adicionar nova conta"
-            >
-                <Plus className="h-6 w-6" />
-            </Button>
-
             {/* Stats Cards */}
             {statsLoading ? (
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

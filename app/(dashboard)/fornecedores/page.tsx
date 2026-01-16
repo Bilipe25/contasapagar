@@ -212,11 +212,12 @@ export default function FornecedoresPage() {
                 </Button>
             </div>
 
-            {/* FAB Mobile */}
+            {/* FAB Mobile - positioned above bottom nav */}
             <Button
                 onClick={handleNew}
-                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg sm:hidden z-50 p-0"
+                className="fixed bottom-24 right-6 h-14 w-14 rounded-full shadow-lg sm:hidden z-50 p-0"
                 size="icon"
+                aria-label="Adicionar novo fornecedor"
             >
                 <Plus className="h-6 w-6" />
             </Button>
