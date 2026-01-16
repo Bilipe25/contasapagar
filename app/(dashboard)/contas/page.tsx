@@ -14,15 +14,16 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Filter, X, Calendar } from 'lucide-react'
+import { Plus, Search, Filter, X } from 'lucide-react'
 import { ContasTable } from '@/components/contas/contas-table'
 import { ContasCards } from '@/components/contas/contas-cards'
 import { ContaFormDialog } from '@/components/contas/conta-form-dialog'
 import { ContaDetailDrawer } from '@/components/contas/conta-detail-drawer'
 import { ContasStats } from '@/components/contas/contas-stats'
 import { Skeleton } from '@/components/ui/skeleton'
+import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { cn, formatCurrency, parseLocalDate, isVencido } from '@/lib/utils'
-import { format, startOfMonth, endOfMonth, subMonths, addDays, isSameMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, isSameMonth } from 'date-fns'
 
 import { toast } from 'sonner'
 import { ConfirmDeleteDialog } from '@/components/contas/confirm-delete-dialog'
@@ -42,6 +43,9 @@ export default function ContasPage() {
 
     // Filtro especial para vencidas (não está no store, é local)
     const [filtroVencidas, setFiltroVencidas] = useState(false)
+
+    // Mês selecionado para o picker
+    const [mesSelecionadoFiltro, setMesSelecionadoFiltro] = useState<Date | null>(null)
 
     const {
         filtroStatus,
@@ -139,19 +143,6 @@ export default function ContasPage() {
         filtroTipoDespesa ||
         periodoInicio ||
         periodoFim
-
-    // Presets de período
-    const periodoPresets = [
-        { label: 'Este mês', start: startOfMonth(new Date()), end: endOfMonth(new Date()) },
-        { label: 'Mês passado', start: startOfMonth(subMonths(new Date(), 1)), end: endOfMonth(subMonths(new Date(), 1)) },
-        { label: 'Próximos 7 dias', start: new Date(), end: addDays(new Date(), 7) },
-        { label: 'Próximos 30 dias', start: new Date(), end: addDays(new Date(), 30) },
-    ]
-
-    const aplicarPreset = (preset: typeof periodoPresets[0]) => {
-        setPeriodoInicio(format(preset.start, 'yyyy-MM-dd'))
-        setPeriodoFim(format(preset.end, 'yyyy-MM-dd'))
-    }
 
     // Filtrar por busca textual e vencidas localmente
     const contasFiltradas = contasData?.filter(conta => {
@@ -374,43 +365,21 @@ export default function ContasPage() {
                     </Select>
                 </div>
 
-                {/* Período Presets - Horizontal scroll on mobile */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 border-t pt-3">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-fit">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Período:</span>
+                {/* Seletor de Período com MonthYearPicker */}
+                <div className="flex items-center justify-between border-t pt-3">
+                    <MonthYearPicker
+                        value={mesSelecionadoFiltro}
+                        onChange={setMesSelecionadoFiltro}
+                        onPeriodChange={(start, end) => {
+                            setPeriodoInicio(start)
+                            setPeriodoFim(end)
+                        }}
+                    />
+
+                    {/* Contador de resultados */}
+                    <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{contasFiltradas.length} conta{contasFiltradas.length !== 1 ? 's' : ''}</span>
                     </div>
-
-                    {periodoPresets.map((preset) => (
-                        <Button
-                            key={preset.label}
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                                "h-7 text-xs whitespace-nowrap",
-                                periodoInicio === format(preset.start, 'yyyy-MM-dd') &&
-                                periodoFim === format(preset.end, 'yyyy-MM-dd') &&
-                                "bg-primary text-primary-foreground"
-                            )}
-                            onClick={() => aplicarPreset(preset)}
-                        >
-                            {preset.label}
-                        </Button>
-                    ))}
-
-                    {(periodoInicio || periodoFim) && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-muted-foreground min-w-fit"
-                            onClick={() => {
-                                setPeriodoInicio(null)
-                                setPeriodoFim(null)
-                            }}
-                        >
-                            <X className="h-3 w-3" />
-                        </Button>
-                    )}
                 </div>
             </div>
 
