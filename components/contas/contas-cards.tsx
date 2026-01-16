@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 import { MarcarPagoDialog } from './marcar-pago-dialog'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { ContaActionsSheet } from './conta-actions-sheet'
 
 interface ContasCardsProps {
     contas: any[]
@@ -30,6 +31,7 @@ export function ContasCards({ contas, onEdit, onView }: ContasCardsProps) {
     const utils = trpc.useUtils()
     const [marcarPagoId, setMarcarPagoId] = useState<string | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
+    const [actionSheetConta, setActionSheetConta] = useState<any | null>(null)
 
     const deleteMutation = trpc.contas.delete.useMutation({
         onSuccess: () => {
@@ -168,43 +170,19 @@ export function ContasCards({ contas, onEdit, onView }: ContasCardsProps) {
                                     {safeFormatCurrency(valor)}
                                 </span>
 
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <MoreVertical className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        {conta.status === 'ativa' && (
-                                            <>
-                                                <DropdownMenuItem
-                                                    onClick={() => setMarcarPagoId(conta.id)}
-                                                    className="text-emerald-600"
-                                                >
-                                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                                    Marcar como Pago
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                            </>
-                                        )}
-                                        <DropdownMenuItem onClick={() => onEdit(conta.id)}>
-                                            <Edit className="mr-2 h-4 w-4" />
-                                            Editar
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => handleDelete(conta.id, conta.descricao)}
-                                            className="text-red-600"
-                                        >
-                                            <Trash className="mr-2 h-4 w-4" />
-                                            Excluir
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                {/* Mobile: Button to open Bottom Sheet */}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setActionSheetConta(conta)
+                                    }}
+                                    aria-label="Abrir menu de ações"
+                                >
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
                             </div>
                         </div>
                     )
@@ -267,6 +245,17 @@ export function ContasCards({ contas, onEdit, onView }: ContasCardsProps) {
             <MarcarPagoDialog
                 contaId={marcarPagoId}
                 onOpenChange={(open: boolean) => !open && setMarcarPagoId(null)}
+            />
+
+            {/* Bottom Sheet for Actions (Mobile) */}
+            <ContaActionsSheet
+                conta={actionSheetConta}
+                open={!!actionSheetConta}
+                onOpenChange={(open) => !open && setActionSheetConta(null)}
+                onView={onView}
+                onEdit={onEdit}
+                onMarkAsPaid={(id) => setMarcarPagoId(id)}
+                onDelete={handleDelete}
             />
         </>
     )
