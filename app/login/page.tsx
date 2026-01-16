@@ -34,10 +34,48 @@ export default function LoginPage() {
         setIsLoading(true)
 
         const formData = new FormData(e.currentTarget)
-        const email = formData.get('email') as string
+        const identifier = formData.get('identifier') as string
         const password = formData.get('password') as string
 
         const supabase = createClient()
+
+        // Verificar se é email ou username
+        let email = identifier
+
+        if (!identifier.includes('@')) {
+            // É um username, tentar buscar o email associado
+            try {
+                const { data: userData, error: lookupError } = await supabase
+                    .from('user_profiles')
+                    .select('email')
+                    .eq('username', identifier.toLowerCase())
+                    .single()
+
+                if (lookupError) {
+                    // Se a tabela não existe ou outro erro, tentar como email mesmo assim
+                    if (lookupError.code === '42P01' || lookupError.code === 'PGRST116' || lookupError.message.includes('406')) {
+                        // Tabela não existe ou erro de schema - usar identifier como email
+                        email = identifier
+                    } else if (lookupError.code === 'PGRST116') {
+                        // Usuário não encontrado
+                        toast.error('Usuário não encontrado', {
+                            description: 'Verifique o nome de usuário e tente novamente.',
+                        })
+                        setIsLoading(false)
+                        return
+                    } else {
+                        // Outro erro - usar identifier como email e deixar o auth tratar
+                        email = identifier
+                    }
+                } else if (userData) {
+                    email = userData.email
+                }
+            } catch (err) {
+                // Erro inesperado - tentar como email mesmo assim
+                email = identifier
+            }
+        }
+
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -60,9 +98,28 @@ export default function LoginPage() {
         setIsLoading(true)
 
         const formData = new FormData(e.currentTarget)
+        const username = formData.get('username') as string
         const email = formData.get('email') as string
         const password = formData.get('password') as string
         const confirmPassword = formData.get('confirmPassword') as string
+
+        // Validar username
+        const usernameRegex = /^[a-zA-Z0-9._]+$/
+        if (!usernameRegex.test(username)) {
+            toast.error('Nome de usuário inválido', {
+                description: 'Use apenas letras, números, pontos e underscores.',
+            })
+            setIsLoading(false)
+            return
+        }
+
+        if (username.length < 3) {
+            toast.error('Nome de usuário muito curto', {
+                description: 'Mínimo de 3 caracteres.',
+            })
+            setIsLoading(false)
+            return
+        }
 
         if (password !== confirmPassword) {
             toast.error('As senhas não coincidem')
@@ -71,9 +128,30 @@ export default function LoginPage() {
         }
 
         const supabase = createClient()
+
+        // Verificar se username já existe
+        const { data: existingUser } = await supabase
+            .from('user_profiles')
+            .select('id')
+            .eq('username', username.toLowerCase())
+            .single()
+
+        if (existingUser) {
+            toast.error('Nome de usuário já em uso', {
+                description: 'Escolha outro nome de usuário.',
+            })
+            setIsLoading(false)
+            return
+        }
+
         const { error } = await supabase.auth.signUp({
             email,
             password,
+            options: {
+                data: {
+                    username: username.toLowerCase(),
+                },
+            },
         })
 
         if (error) {
@@ -128,15 +206,16 @@ export default function LoginPage() {
                             <form onSubmit={handleSignIn}>
                                 <CardContent className="space-y-4 pt-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="login-email">Email</Label>
+                                        <Label htmlFor="login-identifier">Email ou nome de usuário</Label>
                                         <Input
-                                            id="login-email"
-                                            name="email"
-                                            type="email"
-                                            placeholder="seu@email.com"
+                                            id="login-identifier"
+                                            name="identifier"
+                                            type="text"
+                                            placeholder="seu@email.com ou seu.usuario"
                                             required
                                             disabled={isLoading}
                                             className="bg-background/50"
+                                            autoComplete="username"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -189,6 +268,23 @@ export default function LoginPage() {
                         <TabsContent value="register" className="mt-0">
                             <form onSubmit={handleSignUp}>
                                 <CardContent className="space-y-4 pt-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="register-username">Nome de usuário</Label>
+                                        <Input
+                                            id="register-username"
+                                            name="username"
+                                            type="text"
+                                            placeholder="seu.usuario"
+                                            required
+                                            disabled={isLoading}
+                                            className="bg-background/50"
+                                            minLength={3}
+                                            pattern="^[a-zA-Z0-9._]+$"
+                                        />
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Apenas letras, números, pontos e underscores
+                                        </p>
+                                    </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="register-email">Email</Label>
                                         <Input
