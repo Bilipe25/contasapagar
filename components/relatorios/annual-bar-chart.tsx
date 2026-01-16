@@ -35,9 +35,9 @@ interface CustomTooltipProps {
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (!active || !payload?.length) return null
 
-    const aVencer = payload.find((p: any) => p.dataKey === 'aVencer')?.value || 0
-    const quitado = payload.find((p: any) => p.dataKey === 'quitado')?.value || 0
-    const vencido = payload.find((p: any) => p.dataKey === 'vencido')?.value || 0
+    const aVencer = payload.find((p) => p.dataKey === 'aVencer')?.value || 0
+    const quitado = payload.find((p) => p.dataKey === 'quitado')?.value || 0
+    const vencido = payload.find((p) => p.dataKey === 'vencido')?.value || 0
     const total = aVencer + quitado + vencido
     const percentQuitado = total > 0 ? ((quitado / total) * 100).toFixed(0) : 0
 
@@ -173,7 +173,7 @@ export function AnnualBarChart({ data, ano }: AnnualBarChartProps) {
                         <CartesianGrid
                             strokeDasharray="3 3"
                             vertical={false}
-                            stroke="hsl(var(--border))"
+                            stroke="var(--border)"
                             strokeOpacity={0.5}
                         />
                         <XAxis
@@ -181,14 +181,14 @@ export function AnnualBarChart({ data, ano }: AnnualBarChartProps) {
                             fontSize={10}
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            tick={{ fill: 'var(--foreground)' }}
                             dy={5}
                         />
                         <YAxis
                             fontSize={9}
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            tick={{ fill: 'var(--foreground)' }}
                             tickFormatter={(value) => {
                                 if (value >= 1000) {
                                     return `${(value / 1000).toFixed(0)}k`
@@ -200,7 +200,7 @@ export function AnnualBarChart({ data, ano }: AnnualBarChartProps) {
                         />
                         <Tooltip
                             content={<CustomTooltip />}
-                            cursor={{ fill: 'hsl(var(--accent))', opacity: 0.3, radius: 4 }}
+                            cursor={{ fill: 'var(--accent)', opacity: 0.3, radius: 4 }}
                         />
                         <Bar
                             dataKey="aVencer"

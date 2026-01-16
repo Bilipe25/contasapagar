@@ -9,7 +9,6 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Cell,
     LabelList,
 } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
@@ -24,11 +23,20 @@ interface MonthlyChartProps {
 }
 
 // Tooltip customizado
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface CustomTooltipProps {
+    active?: boolean
+    payload?: Array<{
+        value: number
+        dataKey: string
+    }>
+    label?: string
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (!active || !payload?.length) return null
 
-    const previsto = payload.find((p: any) => p.dataKey === 'previsto')?.value || 0
-    const pago = payload.find((p: any) => p.dataKey === 'pago')?.value || 0
+    const previsto = payload.find((p) => p.dataKey === 'previsto')?.value || 0
+    const pago = payload.find((p) => p.dataKey === 'pago')?.value || 0
     const diff = previsto - pago
     const percentPago = previsto > 0 ? ((pago / previsto) * 100).toFixed(0) : 0
 
@@ -157,7 +165,7 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
                         <CartesianGrid
                             strokeDasharray="3 3"
                             vertical={false}
-                            stroke="hsl(var(--border))"
+                            stroke="var(--border)"
                             strokeOpacity={0.5}
                         />
                         <XAxis
@@ -165,14 +173,14 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
                             fontSize={11}
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            tick={{ fill: 'var(--foreground)' }}
                             dy={8}
                         />
                         <YAxis
                             fontSize={10}
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            tick={{ fill: 'var(--foreground)' }}
                             tickFormatter={(value) => {
                                 if (value >= 1000) {
                                     return `${(value / 1000).toFixed(0)}k`
@@ -184,7 +192,7 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
                         />
                         <Tooltip
                             content={<CustomTooltip />}
-                            cursor={{ fill: 'hsl(var(--accent))', opacity: 0.3, radius: 4 }}
+                            cursor={{ fill: 'var(--accent)', opacity: 0.3, radius: 4 }}
                         />
                         <Bar
                             dataKey="previsto"
@@ -197,7 +205,7 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
                                 dataKey="previsto"
                                 position="top"
                                 fontSize={9}
-                                fill="hsl(var(--muted-foreground))"
+                                fill="var(--muted-foreground)"
                                 formatter={(value) => typeof value === 'number' && value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value}
                                 className="hidden sm:block"
                             />
@@ -213,7 +221,7 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
                                 dataKey="pago"
                                 position="top"
                                 fontSize={9}
-                                fill="hsl(var(--muted-foreground))"
+                                fill="var(--muted-foreground)"
                                 formatter={(value) => typeof value === 'number' && value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value}
                                 className="hidden sm:block"
                             />

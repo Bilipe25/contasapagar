@@ -142,7 +142,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
                                         <Cell
                                             key={`cell-${index}`}
                                             fill={entry.color}
-                                            stroke="hsl(var(--background))"
+                                            stroke="var(--background)"
                                             strokeWidth={2}
                                         />
                                     ))}
@@ -173,13 +173,13 @@ export function CategoryChart({ data }: CategoryChartProps) {
                                     label={({ name, percent }) =>
                                         `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
                                     }
-                                    labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
+                                    labelLine={{ stroke: 'var(--muted-foreground)', strokeWidth: 1 }}
                                 >
                                     {chartDataWithTotal.map((entry, index) => (
                                         <Cell
                                             key={`cell-${index}`}
                                             fill={entry.color}
-                                            stroke="hsl(var(--background))"
+                                            stroke="var(--background)"
                                             strokeWidth={2}
                                         />
                                     ))}
