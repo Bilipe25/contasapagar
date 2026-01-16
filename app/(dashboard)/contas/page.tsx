@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { trpc } from '@/lib/trpc/client'
 import { useAppStore } from '@/lib/store/use-app-store'
@@ -218,6 +218,7 @@ export default function ContasPage() {
                 onClick={() => setIsFormOpen(true)}
                 className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg sm:hidden z-50 p-0"
                 size="icon"
+                aria-label="Adicionar nova conta"
             >
                 <Plus className="h-6 w-6" />
             </Button>

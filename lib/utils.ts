@@ -72,6 +72,20 @@ export function getStatusLabel(status: string): string {
   return labels[status as keyof typeof labels] || status
 }
 
+// Retorna o nome do ícone Lucide para cada status (para acessibilidade - daltônicos)
+export function getStatusIcon(status: string): 'CheckCircle2' | 'Clock' | 'AlertTriangle' | 'XCircle' {
+  const icons = {
+    pendente: 'Clock',
+    ativa: 'Clock',
+    pago: 'CheckCircle2',
+    quitada: 'CheckCircle2',
+    atrasado: 'AlertTriangle',
+    cancelado: 'XCircle',
+    cancelada: 'XCircle',
+  } as const
+  return icons[status as keyof typeof icons] || 'Clock'
+}
+
 export function getTipoPagamentoLabel(tipo: string): string {
   const labels = {
     dinheiro: 'Dinheiro',

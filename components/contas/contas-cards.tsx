@@ -11,11 +11,12 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatCurrency, formatDateRelative, getStatusColor, getStatusLabel, isVencido, cn } from '@/lib/utils'
-import { MoreVertical, Edit, Trash, CheckCircle, AlertTriangle, Calendar, Building2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MoreVertical, Edit, Trash, CheckCircle, AlertTriangle, Calendar, Building2, ChevronLeft, ChevronRight, Clock, XCircle, CheckCircle2 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { MarcarPagoDialog } from './marcar-pago-dialog'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 interface ContasCardsProps {
     contas: any[]
@@ -153,9 +154,7 @@ export function ContasCards({ contas, onEdit, onView }: ContasCardsProps) {
                                             {conta.parcela_atual}/{conta.total_parcelas}
                                         </Badge>
                                     )}
-                                    <Badge className={cn(getStatusColor(conta.status), "text-[9px] h-4 px-1 py-0")}>
-                                        {getStatusLabel(conta.status)}
-                                    </Badge>
+                                    <StatusBadge status={conta.status} size="sm" />
                                 </div>
                             </div>
 

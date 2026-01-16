@@ -123,3 +123,56 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Acessibilidade - Foco visível melhorado */
+@layer utilities {
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+}
+
+/* Mobile UX - Indicador de scroll horizontal */
+.scroll-fade-x {
+  position: relative;
+}
+
+.scroll-fade-x::before,
+.scroll-fade-x::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.scroll-fade-x::before {
+  left: 0;
+  background: linear-gradient(to right, var(--background) 0%, transparent 100%);
+}
+
+.scroll-fade-x::after {
+  right: 0;
+  background: linear-gradient(to left, var(--background) 0%, transparent 100%);
+}
+
+.scroll-fade-x[data-scroll-start="false"]::before {
+  opacity: 1;
+}
+
+.scroll-fade-x[data-scroll-end="false"]::after {
+  opacity: 1;
+}
+
+/* Sticky com sombra ao rolar */
+.sticky-elevated {
+  @apply transition-shadow duration-200;
+}
+
+.sticky-elevated[data-scrolled="true"] {
+  @apply shadow-md;
+}
+

@@ -34,6 +34,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { User } from '@supabase/supabase-js'
 
 const navigation = [
@@ -80,7 +81,7 @@ export function DashboardShell({ children, user }: { children: React.ReactNode; 
                         <div className="flex items-center gap-4">
                             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                                 <SheetTrigger asChild className="lg:hidden">
-                                    <Button variant="ghost" size="icon">
+                                    <Button variant="ghost" size="icon" aria-label="Abrir menu de navegação">
                                         <Menu className="h-5 w-5" />
                                     </Button>
                                 </SheetTrigger>
@@ -164,7 +165,7 @@ export function DashboardShell({ children, user }: { children: React.ReactNode; 
                             {/* Theme Toggle */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
+                                    <Button variant="ghost" size="icon" aria-label="Alternar tema de cores">
                                         <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                                         <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                                         <span className="sr-only">Alternar tema</span>
@@ -206,7 +207,7 @@ export function DashboardShell({ children, user }: { children: React.ReactNode; 
                             {/* User Menu */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                                    <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="Menu do usuário">
                                         <Avatar className="h-9 w-9 border">
                                             <AvatarImage src={user?.user_metadata?.avatar_url} alt={userName} />
                                             <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
@@ -237,6 +238,7 @@ export function DashboardShell({ children, user }: { children: React.ReactNode; 
 
                 {/* Main Content */}
                 <main className="mx-auto max-w-screen-2xl px-6 py-8 sm:px-8 lg:px-12">
+                    <Breadcrumbs className="mb-4 hidden lg:flex" />
                     {children}
                 </main>
             </div>
