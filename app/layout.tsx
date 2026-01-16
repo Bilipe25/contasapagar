@@ -4,6 +4,7 @@ import "./globals.css";
 import { TRPCProvider } from "@/lib/trpc/client";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,6 +14,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Contas a Pagar - Controle Financeiro Pessoal",
   description: "Sistema completo de gerenciamento de contas a pagar pessoal",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Contas",
+  },
 };
 
 export const viewport: Viewport = {
@@ -39,6 +46,7 @@ export default function RootLayout({
           <TRPCProvider>
             {children}
             <Toaster />
+            <PwaInstallPrompt />
           </TRPCProvider>
         </ThemeProvider>
       </body>
