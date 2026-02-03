@@ -25,7 +25,8 @@ import {
     Clock,
     AlertTriangle,
     TrendingUp,
-    Wallet
+    Wallet,
+    Landmark
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -157,6 +158,15 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
                                             <span className="flex items-center gap-1 text-primary/80">
                                                 <Tag className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                                 {(conta as any).empresas.nome_fantasia || (conta as any).empresas.razao_social}
+                                            </span>
+                                        </>
+                                    )}
+                                    {(conta as any).bancos && (
+                                        <>
+                                            <span className="text-muted-foreground/50">•</span>
+                                            <span className="flex items-center gap-1 text-primary/80">
+                                                <Landmark className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                                {(conta as any).bancos.nome}
                                             </span>
                                         </>
                                     )}

@@ -124,6 +124,7 @@ export const contasRouter = router({
                     fornecedores(id, nome),
                     tipos_despesa(id, nome, cor),
                     empresas(id, razao_social, cnpj),
+                    bancos(id, nome),
                     parcelas(*)
                 `)
                 .eq('id', input)
