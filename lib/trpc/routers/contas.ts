@@ -10,6 +10,7 @@ export const contasRouter = router({
                 status: z.enum(['ativa', 'quitada', 'cancelada']).optional(),
                 fornecedorId: z.string().optional(),
                 tipoDespesaId: z.string().optional(),
+                empresaId: z.string().optional(),
                 dataInicio: z.string().optional(),
                 dataFim: z.string().optional(),
             }).optional()
@@ -21,11 +22,9 @@ export const contasRouter = router({
                     *,
                     fornecedores(id, nome),
                     tipos_despesa(id, nome, cor),
-                    empresas(id, razao_social, cnpj),
+                    empresas(id, razao_social, nome_fantasia, cnpj),
                     ${(input?.dataInicio || input?.dataFim) ? 'parcelas!inner' : 'parcelas'}(id, numero_parcela, valor_final, status, data_vencimento, data_pagamento)
                 `)
-                .eq('user_id', ctx.user.id)
-                .order('created_at', { ascending: false })
                 .eq('user_id', ctx.user.id)
                 .order('created_at', { ascending: false })
 
@@ -37,6 +36,9 @@ export const contasRouter = router({
             }
             if (input?.tipoDespesaId) {
                 query = query.eq('tipo_despesa_id', input.tipoDespesaId)
+            }
+            if (input?.empresaId) {
+                query = query.eq('empresa_id', input.empresaId)
             }
             if (input?.dataInicio) {
                 query = query.gte('parcelas.data_vencimento', input.dataInicio)

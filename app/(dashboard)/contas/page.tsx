@@ -51,12 +51,14 @@ export default function ContasPage() {
         filtroStatus,
         filtroFornecedor,
         filtroTipoDespesa,
+        filtroEmpresa,
         periodoInicio,
         periodoFim,
         visualizacao,
         setFiltroStatus,
         setFiltroFornecedor,
         setFiltroTipoDespesa,
+        setFiltroEmpresa,
         setPeriodoInicio,
         setPeriodoFim,
         setVisualizacao,
@@ -99,12 +101,14 @@ export default function ContasPage() {
         status: filtroStatus === 'todos' ? undefined : filtroStatus,
         fornecedorId: filtroFornecedor || undefined,
         tipoDespesaId: filtroTipoDespesa || undefined,
+        empresaId: filtroEmpresa || undefined,
         dataInicio: periodoInicio || undefined,
         dataFim: periodoFim || undefined,
     })
 
     const { data: fornecedores } = trpc.fornecedores.list.useQuery()
     const { data: tiposDespesa } = trpc.tiposDespesa.list.useQuery()
+    const { data: empresas } = trpc.empresas.list.useQuery()
 
     // Calcular estatísticas
     const stats = contasData ? {
@@ -141,6 +145,7 @@ export default function ContasPage() {
         filtroStatus !== 'todos' ||
         filtroFornecedor ||
         filtroTipoDespesa ||
+        filtroEmpresa ||
         periodoInicio ||
         periodoFim
 
@@ -296,7 +301,7 @@ export default function ContasPage() {
                 </div>
 
                 {/* Filter Chips - Mobile Scroll / Desktop Grid */}
-                <div className="flex sm:grid sm:grid-cols-3 gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
+                <div className="flex sm:grid sm:grid-cols-4 gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
                     {/* Status Filter */}
                     <Select
                         value={filtroVencidas ? 'vencidas' : filtroStatus}
@@ -359,6 +364,24 @@ export default function ContasPage() {
                                         />
                                         {tipo.nome}
                                     </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Empresa Filter */}
+                    <Select
+                        value={filtroEmpresa || 'all'}
+                        onValueChange={(v) => setFiltroEmpresa(v === 'all' ? null : v)}
+                    >
+                        <SelectTrigger className="min-w-[120px] sm:min-w-0 h-9 text-xs sm:text-sm">
+                            <SelectValue placeholder="Empresa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas empresas</SelectItem>
+                            {empresas?.map((empresa) => (
+                                <SelectItem key={empresa.id} value={empresa.id}>
+                                    {empresa.nome_fantasia || empresa.razao_social}
                                 </SelectItem>
                             ))}
                         </SelectContent>
