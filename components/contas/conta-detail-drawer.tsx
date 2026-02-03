@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/sheet'
 import { trpc } from '@/lib/trpc/client'
 import { ParcelasTable } from './parcelas-table'
+import { AddParcelaDialog } from './add-parcela-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -257,6 +258,10 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
                                     <TrendingUp className="h-5 w-5 text-muted-foreground" />
                                     Parcelas
                                 </h3>
+                                <AddParcelaDialog
+                                    contaId={conta.id}
+                                    proximoNumero={(conta.parcelas?.length || 0) + 1}
+                                />
                             </div>
                             <ParcelasTable
                                 parcelas={conta.parcelas as any[]}
