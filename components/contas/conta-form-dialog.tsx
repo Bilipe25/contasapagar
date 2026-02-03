@@ -364,22 +364,35 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
 
 
                 {isEditing && isLoadingConta ? (
-                    <div className="space-y-6 p-6">
-                        {/* Skeleton Loading mantido */}
-                        <div className="space-y-4">
-                            <div className="h-5 w-32 bg-muted animate-pulse rounded" />
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                    <div className="space-y-6">
+                        {/* Header Loading */}
+                        <div className="border-b px-6 py-4">
+                            <DialogHeader className="space-y-1 text-left">
+                                <DialogTitle className="flex items-center gap-2 text-xl">
+                                    <div className="h-9 w-9 rounded-lg bg-muted animate-pulse" />
+                                    Editar Conta
+                                </DialogTitle>
+                                <DialogDescription>Carregando informações...</DialogDescription>
+                            </DialogHeader>
+                        </div>
+
+                        <div className="space-y-6 px-6 pb-6">
+                            {/* Skeleton Loading mantido */}
+                            <div className="space-y-4">
+                                <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                                    <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                                </div>
                                 <div className="h-10 w-full bg-muted animate-pulse rounded" />
                             </div>
-                            <div className="h-10 w-full bg-muted animate-pulse rounded" />
-                        </div>
-                        <div className="space-y-4">
-                            <div className="h-5 w-32 bg-muted animate-pulse rounded" />
-                            <div className="grid gap-4 md:grid-cols-3">
-                                <div className="h-10 w-full bg-muted animate-pulse rounded" />
-                                <div className="h-10 w-full bg-muted animate-pulse rounded" />
-                                <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                            <div className="space-y-4">
+                                <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+                                <div className="grid gap-4 md:grid-cols-3">
+                                    <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                                    <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                                    <div className="h-10 w-full bg-muted animate-pulse rounded" />
+                                </div>
                             </div>
                         </div>
                     </div>
