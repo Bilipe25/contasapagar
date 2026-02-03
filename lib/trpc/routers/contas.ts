@@ -21,8 +21,11 @@ export const contasRouter = router({
                     *,
                     fornecedores(id, nome),
                     tipos_despesa(id, nome, cor),
+                    empresas(id, razao_social, cnpj),
                     ${(input?.dataInicio || input?.dataFim) ? 'parcelas!inner' : 'parcelas'}(id, numero_parcela, valor_final, status, data_vencimento, data_pagamento)
                 `)
+                .eq('user_id', ctx.user.id)
+                .order('created_at', { ascending: false })
                 .eq('user_id', ctx.user.id)
                 .order('created_at', { ascending: false })
 
@@ -113,6 +116,7 @@ export const contasRouter = router({
                     *,
                     fornecedores(id, nome),
                     tipos_despesa(id, nome, cor),
+                    empresas(id, razao_social, cnpj),
                     parcelas(*)
                 `)
                 .eq('id', input)
@@ -142,6 +146,7 @@ export const contasRouter = router({
                 descricao: z.string().min(1),
                 fornecedor_id: z.string().optional().nullable(),
                 tipo_despesa_id: z.string().optional().nullable(),
+                empresa_id: z.string().optional().nullable(),
                 data_emissao: z.string(),
                 total_parcelas: z.number().min(1).default(1),
                 valor_original: z.number().min(0),
@@ -170,6 +175,7 @@ export const contasRouter = router({
                     descricao: input.descricao,
                     fornecedor_id: input.fornecedor_id,
                     tipo_despesa_id: input.tipo_despesa_id,
+                    empresa_id: input.empresa_id,
                     data_emissao: input.data_emissao,
                     total_parcelas: input.parcelas?.length || input.total_parcelas,
                     valor_total: valorTotal,
@@ -305,6 +311,7 @@ export const contasRouter = router({
                 descricao: z.string().optional(),
                 fornecedor_id: z.string().optional().nullable(),
                 tipo_despesa_id: z.string().optional().nullable(),
+                empresa_id: z.string().optional().nullable(),
                 observacoes: z.string().optional().nullable(),
                 status: z.enum(['ativa', 'quitada', 'cancelada']).optional(),
             })

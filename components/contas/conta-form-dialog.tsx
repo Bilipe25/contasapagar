@@ -65,6 +65,7 @@ import { cn } from '@/lib/utils'
 const contaSchema = z.object({
     fornecedor_id: z.string().optional(),
     tipo_despesa_id: z.string().optional(),
+    empresa_id: z.string().optional(),
     descricao: z.string().min(1, 'Descrição é obrigatória'),
     valor_total: z.string().min(1, 'Valor é obrigatório'),
     data_emissao: z.string().min(1, 'Data de emissão é obrigatória'),
@@ -98,6 +99,9 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
     const [popoverCategoria, setPopoverCategoria] = useState(false)
     const [comboFornecedor, setComboFornecedor] = useState(false)
     const [comboCategoria, setComboCategoria] = useState(false)
+    const [comboEmpresa, setComboEmpresa] = useState(false)
+    const [novaEmpresa, setNovaEmpresa] = useState('')
+    const [popoverEmpresa, setPopoverEmpresa] = useState(false)
 
     // Estado para parcelas editáveis
     const [parcelasEditaveis, setParcelasEditaveis] = useState<ParcelaEditavel[]>([])
@@ -110,6 +114,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
         defaultValues: {
             fornecedor_id: '',
             tipo_despesa_id: '',
+            empresa_id: '',
             descricao: '',
             valor_total: '',
             data_emissao: format(new Date(), 'yyyy-MM-dd'),
@@ -123,6 +128,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
     // Fetch data for selects
     const { data: fornecedores } = trpc.fornecedores.list.useQuery()
     const { data: tiposDespesa } = trpc.tiposDespesa.list.useQuery()
+    const { data: empresas } = trpc.empresas.list.useQuery()
 
     // Fetch conta if editing
     const { data: conta, isLoading: isLoadingConta } = trpc.contas.getById.useQuery(contaId!, {
@@ -157,6 +163,20 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
         },
     })
 
+    // Create empresa mutation
+    const criarEmpresa = trpc.empresas.create.useMutation({
+        onSuccess: (data) => {
+            toast.success('Empresa cadastrada!')
+            utils.empresas.list.invalidate()
+            form.setValue('empresa_id', data.id)
+            setNovaEmpresa('')
+            setPopoverEmpresa(false)
+        },
+        onError: (error) => {
+            toast.error('Erro ao criar empresa', { description: error.message })
+        },
+    })
+
     // Populate form when editing
     useEffect(() => {
         if (conta) {
@@ -165,6 +185,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
             form.reset({
                 fornecedor_id: conta.fornecedor_id || '',
                 tipo_despesa_id: conta.tipo_despesa_id || '',
+                empresa_id: conta.empresa_id || '',
                 descricao: conta.descricao,
                 valor_total: valorTotalConta.toString(),
                 data_emissao: conta.data_emissao,
@@ -283,6 +304,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 id: contaId!,
                 fornecedor_id: data.fornecedor_id,
                 tipo_despesa_id: data.tipo_despesa_id,
+                empresa_id: data.empresa_id,
                 descricao: data.descricao,
                 observacoes: data.observacoes,
             })
@@ -296,6 +318,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
             createMutation.mutate({
                 fornecedor_id: data.fornecedor_id,
                 tipo_despesa_id: data.tipo_despesa_id,
+                empresa_id: data.empresa_id,
                 descricao: data.descricao,
                 valor_original: somaParcelas / parcelasEditaveis.length, // Média
                 valor_juros: 0,
@@ -558,6 +581,124 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                         )}
                                     />
                                 </div>
+
+                                {/* Empresa (opcional) */}
+                                <FormField
+                                    control={form.control}
+                                    name="empresa_id"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>Empresa (opcional)</FormLabel>
+                                            <div className="flex gap-2">
+                                                <Popover open={comboEmpresa} onOpenChange={setComboEmpresa}>
+                                                    <PopoverTrigger asChild>
+                                                        <FormControl>
+                                                            <Button
+                                                                variant="outline"
+                                                                role="combobox"
+                                                                aria-expanded={comboEmpresa}
+                                                                className={cn(
+                                                                    "flex-1 justify-between font-normal",
+                                                                    !field.value && "text-muted-foreground"
+                                                                )}
+                                                            >
+                                                                {field.value ? (
+                                                                    <span className="flex items-center gap-2">
+                                                                        <Building2 className="h-3 w-3" />
+                                                                        {empresas?.find((e) => e.id === field.value)?.nome_fantasia ||
+                                                                            empresas?.find((e) => e.id === field.value)?.razao_social}
+                                                                    </span>
+                                                                ) : (
+                                                                    "Buscar empresa..."
+                                                                )}
+                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                            </Button>
+                                                        </FormControl>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-[300px] p-0" align="start">
+                                                        <Command>
+                                                            <CommandInput placeholder="Buscar empresa..." />
+                                                            <CommandList>
+                                                                <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    <CommandItem
+                                                                        value="_limpar_"
+                                                                        onSelect={() => {
+                                                                            field.onChange('')
+                                                                            setComboEmpresa(false)
+                                                                        }}
+                                                                    >
+                                                                        <Check
+                                                                            className={cn(
+                                                                                "mr-2 h-4 w-4",
+                                                                                !field.value ? "opacity-100" : "opacity-0"
+                                                                            )}
+                                                                        />
+                                                                        <span className="text-muted-foreground">Nenhuma empresa</span>
+                                                                    </CommandItem>
+                                                                    {empresas?.map((e) => (
+                                                                        <CommandItem
+                                                                            key={e.id}
+                                                                            value={`${e.razao_social} ${e.nome_fantasia || ''} ${e.cnpj || ''}`}
+                                                                            onSelect={() => {
+                                                                                field.onChange(e.id)
+                                                                                setComboEmpresa(false)
+                                                                            }}
+                                                                        >
+                                                                            <Check
+                                                                                className={cn(
+                                                                                    "mr-2 h-4 w-4",
+                                                                                    field.value === e.id ? "opacity-100" : "opacity-0"
+                                                                                )}
+                                                                            />
+                                                                            <span className="flex flex-col">
+                                                                                <span>{e.nome_fantasia || e.razao_social}</span>
+                                                                                {e.cnpj && (
+                                                                                    <span className="text-xs text-muted-foreground">{e.cnpj}</span>
+                                                                                )}
+                                                                            </span>
+                                                                        </CommandItem>
+                                                                    ))}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
+                                                <Popover open={popoverEmpresa} onOpenChange={setPopoverEmpresa}>
+                                                    <PopoverTrigger asChild>
+                                                        <Button type="button" variant="outline" size="icon">
+                                                            <Plus className="h-4 w-4" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-64" align="end">
+                                                        <div className="space-y-2">
+                                                            <p className="text-sm font-medium">Nova Empresa</p>
+                                                            <Input
+                                                                placeholder="Razão social"
+                                                                value={novaEmpresa}
+                                                                onChange={(e) => setNovaEmpresa(e.target.value)}
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                className="w-full"
+                                                                disabled={!novaEmpresa || criarEmpresa.isPending}
+                                                                onClick={() => criarEmpresa.mutate({ razao_social: novaEmpresa })}
+                                                            >
+                                                                {criarEmpresa.isPending ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                ) : (
+                                                                    'Cadastrar'
+                                                                )}
+                                                            </Button>
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
                                 {/* Descrição */}
                                 <FormField

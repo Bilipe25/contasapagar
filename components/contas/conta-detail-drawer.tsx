@@ -150,6 +150,15 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
                                             </span>
                                         </>
                                     )}
+                                    {(conta as any).empresas && (
+                                        <>
+                                            <span className="text-muted-foreground/50">•</span>
+                                            <span className="flex items-center gap-1 text-primary/80">
+                                                <Tag className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                                {(conta as any).empresas.nome_fantasia || (conta as any).empresas.razao_social}
+                                            </span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             {onEdit && (

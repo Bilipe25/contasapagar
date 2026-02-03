@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { trpc } from '@/lib/trpc/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Tags, Trash2, Edit, Search } from 'lucide-react'
+import { Plus, Tags, Trash2, Edit, Search, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { TipoDespesaDialog } from '@/components/configuracoes/tipo-despesa-dialog'
+import { EmpresaDialog } from '@/components/configuracoes/empresa-dialog'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,15 +23,25 @@ import {
 } from '@/components/ui/alert-dialog'
 
 export default function ConfiguracoesPage() {
+    // Estado para Categorias
     const [tipoDespesaDialogOpen, setTipoDespesaDialogOpen] = useState(false)
     const [editingTipoDespesa, setEditingTipoDespesa] = useState<string | null>(null)
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-    const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null)
     const [searchCategoria, setSearchCategoria] = useState('')
+
+    // Estado para Empresas
+    const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false)
+    const [editingEmpresa, setEditingEmpresa] = useState<string | null>(null)
+    const [searchEmpresa, setSearchEmpresa] = useState('')
+
+    // Estado para confirmação de exclusão
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string; tipo: 'categoria' | 'empresa' } | null>(null)
 
     const utils = trpc.useUtils()
     const { data: tiposDespesa, isLoading: loadingCategorias } = trpc.tiposDespesa.list.useQuery()
+    const { data: empresas, isLoading: loadingEmpresas } = trpc.empresas.list.useQuery()
 
+    // Mutations
     const deleteTipoDespesa = trpc.tiposDespesa.delete.useMutation({
         onSuccess: () => {
             toast.success('Categoria excluída!')
@@ -41,20 +52,40 @@ export default function ConfiguracoesPage() {
         },
     })
 
+    const deleteEmpresa = trpc.empresas.delete.useMutation({
+        onSuccess: () => {
+            toast.success('Empresa excluída!')
+            utils.empresas.list.invalidate()
+        },
+        onError: (error) => {
+            toast.error('Erro ao excluir', { description: error.message })
+        },
+    })
+
     const handleDelete = () => {
         if (!deleteTarget) return
-        deleteTipoDespesa.mutate(deleteTarget.id)
+        if (deleteTarget.tipo === 'categoria') {
+            deleteTipoDespesa.mutate(deleteTarget.id)
+        } else {
+            deleteEmpresa.mutate(deleteTarget.id)
+        }
         setDeleteConfirmOpen(false)
         setDeleteTarget(null)
     }
 
-    const confirmDelete = (id: string, nome: string) => {
-        setDeleteTarget({ id, nome })
+    const confirmDelete = (id: string, nome: string, tipo: 'categoria' | 'empresa') => {
+        setDeleteTarget({ id, nome, tipo })
         setDeleteConfirmOpen(true)
     }
 
     const filteredCategorias = tiposDespesa?.filter(t =>
         t.nome.toLowerCase().includes(searchCategoria.toLowerCase())
+    ) || []
+
+    const filteredEmpresas = empresas?.filter(e =>
+        e.razao_social.toLowerCase().includes(searchEmpresa.toLowerCase()) ||
+        e.cnpj?.includes(searchEmpresa) ||
+        e.nome_fantasia?.toLowerCase().includes(searchEmpresa.toLowerCase())
     ) || []
 
     return (
@@ -63,9 +94,105 @@ export default function ConfiguracoesPage() {
             <div className="hidden sm:block lg:hidden">
                 <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
                 <p className="text-muted-foreground">
-                    Gerencie categorias de despesa e preferências do sistema
+                    Gerencie categorias, empresas e preferências do sistema
                 </p>
             </div>
+
+            {/* Empresas */}
+            <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 pb-3 sm:pb-4 px-3 sm:px-6 pt-3 sm:pt-6">
+                    <div className="min-w-0">
+                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                            <Building2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                            <span className="truncate">Empresas</span>
+                            {empresas && <Badge variant="secondary" className="text-xs">{empresas.length}</Badge>}
+                        </CardTitle>
+                        <CardDescription className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
+                            Cadastre empresas para associar às suas contas
+                        </CardDescription>
+                    </div>
+                    <Button
+                        onClick={() => {
+                            setEditingEmpresa(null)
+                            setEmpresaDialogOpen(true)
+                        }}
+                        size="sm"
+                        className="w-full sm:w-auto"
+                    >
+                        <Plus className="mr-1.5 h-4 w-4" />
+                        Nova Empresa
+                    </Button>
+                </CardHeader>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                    {/* Search */}
+                    <div className="relative mb-3 sm:mb-4">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar por nome ou CNPJ..."
+                            value={searchEmpresa}
+                            onChange={(e) => setSearchEmpresa(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
+
+                    {/* List */}
+                    {loadingEmpresas ? (
+                        <div className="space-y-2">
+                            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 sm:h-16" />)}
+                        </div>
+                    ) : filteredEmpresas.length === 0 ? (
+                        <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
+                            {searchEmpresa ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada'}
+                        </div>
+                    ) : (
+                        <div className="grid gap-2 md:grid-cols-2">
+                            {filteredEmpresas.map((empresa) => (
+                                <div
+                                    key={empresa.id}
+                                    className="flex items-center justify-between rounded-lg border p-2.5 sm:p-3 hover:bg-muted/50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
+                                            <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-medium text-sm sm:text-base truncate">
+                                                {empresa.nome_fantasia || empresa.razao_social}
+                                            </p>
+                                            {empresa.cnpj && (
+                                                <p className="text-xs text-muted-foreground truncate">
+                                                    {empresa.cnpj}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => {
+                                                setEditingEmpresa(empresa.id)
+                                                setEmpresaDialogOpen(true)
+                                            }}
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-red-600 hover:text-red-700"
+                                            onClick={() => confirmDelete(empresa.id, empresa.razao_social, 'empresa')}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Categorias de Despesa */}
             <Card>
@@ -148,7 +275,7 @@ export default function ConfiguracoesPage() {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 text-red-600 hover:text-red-700"
-                                            onClick={() => confirmDelete(tipo.id, tipo.nome)}
+                                            onClick={() => confirmDelete(tipo.id, tipo.nome, 'categoria')}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -160,11 +287,17 @@ export default function ConfiguracoesPage() {
                 </CardContent>
             </Card>
 
-            {/* Dialog */}
+            {/* Dialogs */}
             <TipoDespesaDialog
                 open={tipoDespesaDialogOpen}
                 onOpenChange={setTipoDespesaDialogOpen}
                 tipoDespesaId={editingTipoDespesa}
+            />
+
+            <EmpresaDialog
+                open={empresaDialogOpen}
+                onOpenChange={setEmpresaDialogOpen}
+                empresaId={editingEmpresa}
             />
 
             {/* Delete Confirmation */}
@@ -173,7 +306,7 @@ export default function ConfiguracoesPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tem certeza que deseja excluir a categoria "{deleteTarget?.nome}"?
+                            Tem certeza que deseja excluir {deleteTarget?.tipo === 'empresa' ? 'a empresa' : 'a categoria'} "{deleteTarget?.nome}"?
                             Esta ação não pode ser desfeita.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -191,3 +324,4 @@ export default function ConfiguracoesPage() {
         </div>
     )
 }
+
