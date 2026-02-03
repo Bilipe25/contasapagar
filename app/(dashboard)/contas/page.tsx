@@ -19,6 +19,8 @@ import { format, startOfMonth, endOfMonth, isSameMonth } from 'date-fns'
 
 import { toast } from 'sonner'
 import { ConfirmDeleteDialog } from '@/components/contas/confirm-delete-dialog'
+import { BulkActionsBar } from '@/components/contas/bulk-actions-bar'
+import { BulkEditDialog } from '@/components/contas/bulk-edit-dialog'
 
 type StatusFilter = 'todos' | 'ativa' | 'quitada' | 'cancelada' | 'vencidas'
 
@@ -32,6 +34,11 @@ export default function ContasPage() {
     const [viewingContaId, setViewingContaId] = useState<string | null>(null)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [contaToDelete, setContaToDelete] = useState<{ id: string; descricao: string } | null>(null)
+
+    // Bulk Actions State
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [bulkEditMode, setBulkEditMode] = useState<'empresa' | 'banco' | 'categoria' | null>(null)
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
     // Filtro especial para vencidas (não está no store, é local)
     const [filtroVencidas, setFiltroVencidas] = useState(false)
@@ -188,6 +195,26 @@ export default function ContasPage() {
         },
     })
 
+    const bulkDeleteMutation = trpc.contas.bulkDelete.useMutation({
+        onSuccess: (data) => {
+            toast.success(`${data.count} contas excluídas com sucesso!`)
+            utils.contas.list.invalidate()
+            setSelectedIds([])
+            setIsBulkDeleting(false)
+        },
+        onError: (error) => {
+            toast.error('Erro ao excluir contas: ' + error.message)
+            setIsBulkDeleting(false)
+        }
+    })
+
+    const handleBulkDelete = () => {
+        if (confirm(`Tem certeza que deseja excluir ${selectedIds.length} contas selecionadas?`)) {
+            setIsBulkDeleting(true)
+            bulkDeleteMutation.mutate(selectedIds)
+        }
+    }
+
     const handleDelete = (id: string, descricao: string) => {
         setContaToDelete({ id, descricao })
         setDeleteDialogOpen(true)
@@ -296,6 +323,9 @@ export default function ContasPage() {
                             onEdit={handleEdit}
                             onView={handleView}
                             onDelete={handleDelete}
+                            selectedIds={selectedIds}
+                            onSelectionChange={setSelectedIds}
+                            enableSelection={true}
                         />
                     </div>
 
@@ -350,6 +380,25 @@ export default function ContasPage() {
             >
                 <Plus className="h-6 w-6" aria-hidden="true" />
             </Button>
+
+            {/* Bulk Actions UI */}
+            <BulkActionsBar
+                selectedCount={selectedIds.length}
+                onClearSelection={() => setSelectedIds([])}
+                onEditEmpresa={() => setBulkEditMode('empresa')}
+                onEditBanco={() => setBulkEditMode('banco')}
+                onEditCategoria={() => setBulkEditMode('categoria')}
+                onDelete={handleBulkDelete}
+                isDeleting={isBulkDeleting}
+            />
+
+            <BulkEditDialog
+                open={!!bulkEditMode}
+                onOpenChange={(open) => !open && setBulkEditMode(null)}
+                mode={bulkEditMode}
+                selectedIds={selectedIds}
+                onSuccess={() => setSelectedIds([])}
+            />
         </div>
     )
 }

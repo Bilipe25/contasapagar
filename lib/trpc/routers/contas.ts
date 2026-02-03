@@ -372,4 +372,66 @@ export const contasRouter = router({
 
             return { success: true }
         }),
+
+    // Atualizar múltiplas contas (Bulk Update)
+    bulkUpdate: protectedProcedure
+        .input(
+            z.object({
+                ids: z.array(z.string()),
+                data: z.object({
+                    empresa_id: z.string().optional().nullable(),
+                    banco_id: z.string().optional().nullable(),
+                    tipo_despesa_id: z.string().optional().nullable(),
+                    fornecedor_id: z.string().optional().nullable(),
+                })
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const { ids, data: updateData } = input
+
+            // Sanitize
+            const sanitizedData = {
+                ...(updateData.empresa_id !== undefined && { empresa_id: updateData.empresa_id || null }),
+                ...(updateData.banco_id !== undefined && { banco_id: updateData.banco_id || null }),
+                ...(updateData.tipo_despesa_id !== undefined && { tipo_despesa_id: updateData.tipo_despesa_id || null }),
+                ...(updateData.fornecedor_id !== undefined && { fornecedor_id: updateData.fornecedor_id || null }),
+            }
+
+            const { error } = await ctx.supabase
+                .from('contas')
+                .update(sanitizedData)
+                .in('id', ids)
+                .eq('user_id', ctx.user.id)
+
+            if (error) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Erro ao atualizar contas em lote',
+                    cause: error,
+                })
+            }
+
+            return { success: true, count: ids.length }
+        }),
+
+    // Deletar múltiplas contas (Bulk Delete)
+    bulkDelete: protectedProcedure
+        .input(z.array(z.string()))
+        .mutation(async ({ ctx, input }) => {
+            const { error } = await ctx.supabase
+                .from('contas')
+                .delete()
+                .in('id', input)
+                .eq('user_id', ctx.user.id)
+
+            if (error) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Erro ao deletar contas em lote',
+                    cause: error,
+                })
+            }
+
+            return { success: true, count: input.length }
+        }),
 })

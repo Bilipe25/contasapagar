@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
     Table,
     TableBody,
@@ -9,6 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -49,6 +50,10 @@ interface ContasTableProps {
     onEdit?: (id: string) => void
     onView?: (id: string) => void
     onDelete?: (id: string, descricao: string) => void
+    // New props for selection
+    selectedIds?: string[]
+    onSelectionChange?: (ids: string[]) => void
+    enableSelection?: boolean
 }
 
 type SortField = 'descricao' | 'data_vencimento' | 'valor_final' | 'data_emissao'
@@ -56,21 +61,19 @@ type SortOrder = 'asc' | 'desc'
 
 const ITEMS_PER_PAGE_OPTIONS = [15, 30, 50]
 
-export function ContasTable({ contas, onEdit, onView, onDelete }: ContasTableProps) {
+export function ContasTable({
+    contas,
+    onEdit,
+    onView,
+    onDelete,
+    selectedIds = [],
+    onSelectionChange,
+    enableSelection = false
+}: ContasTableProps) {
     const [sortField, setSortField] = useState<SortField>('data_emissao')
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(30)
-
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-        } else {
-            setSortField(field)
-            setSortOrder('asc')
-        }
-        setCurrentPage(1) // Reset para primeira página ao ordenar
-    }
 
     // Função para renderizar ícone de ordenação
     const SortIcon = ({ field }: { field: SortField }) => {
@@ -122,6 +125,64 @@ export function ContasTable({ contas, onEdit, onView, onDelete }: ContasTablePro
     const endIndex = startIndex + itemsPerPage
     const paginatedContas = sortedContas.slice(startIndex, endIndex)
 
+    // State for tracking last selected item for Shift+Click range selection
+    const lastSelectedIdRef = useRef<string | null>(null)
+
+    // Selection helpers
+    const handleSelectAll = (checked: boolean) => {
+        if (!onSelectionChange) return
+        if (checked) {
+            // Select all visible items (paginated)
+            // const ids = paginatedContas.map(c => c.id)
+            onSelectionChange(sortedContas.map(c => c.id))
+        } else {
+            onSelectionChange([])
+        }
+    }
+
+    const handleSelectOne = (id: string, checked: boolean, shiftKey: boolean = false) => {
+        if (!onSelectionChange) return
+
+        if (checked) {
+            let newSelectedIds = [...selectedIds, id]
+
+            // Handle Shift+Click Range Selection
+            if (shiftKey && lastSelectedIdRef.current) {
+                const lastIndex = sortedContas.findIndex(c => c.id === lastSelectedIdRef.current)
+                const currentIndex = sortedContas.findIndex(c => c.id === id)
+
+                if (lastIndex !== -1 && currentIndex !== -1) {
+                    const start = Math.min(lastIndex, currentIndex)
+                    const end = Math.max(lastIndex, currentIndex)
+                    const rangeIds = sortedContas.slice(start, end + 1).map(c => c.id)
+
+                    // Add unique IDs from range
+                    const uniqueIds = new Set([...newSelectedIds, ...rangeIds])
+                    newSelectedIds = Array.from(uniqueIds)
+                }
+            }
+
+            onSelectionChange(newSelectedIds)
+            lastSelectedIdRef.current = id
+        } else {
+            onSelectionChange(selectedIds.filter(selectedId => selectedId !== id))
+            lastSelectedIdRef.current = null
+        }
+    }
+
+    const isAllSelected = sortedContas.length > 0 && selectedIds.length === sortedContas.length
+    const isSomeSelected = selectedIds.length > 0 && selectedIds.length < sortedContas.length
+
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortField(field)
+            setSortOrder('asc')
+        }
+        setCurrentPage(1) // Reset para primeira página ao ordenar
+    }
+
     const goToPage = (page: number) => {
         setCurrentPage(Math.max(1, Math.min(page, totalPages)))
     }
@@ -132,6 +193,15 @@ export function ContasTable({ contas, onEdit, onView, onDelete }: ContasTablePro
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            {enableSelection && (
+                                <TableHead className="w-[40px]">
+                                    <Checkbox
+                                        checked={isAllSelected ? true : (isSomeSelected ? 'indeterminate' : false)}
+                                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                        aria-label="Selecionar tudo"
+                                    />
+                                </TableHead>
+                            )}
                             <TableHead>
                                 <Button
                                     variant="ghost"
@@ -192,7 +262,7 @@ export function ContasTable({ contas, onEdit, onView, onDelete }: ContasTablePro
                     <TableBody>
                         {paginatedContas.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
+                                <TableCell colSpan={enableSelection ? 8 : 7} className="h-24 text-center">
                                     Nenhuma conta encontrada.
                                 </TableCell>
                             </TableRow>
@@ -211,10 +281,26 @@ export function ContasTable({ contas, onEdit, onView, onDelete }: ContasTablePro
                                         className={cn(
                                             "cursor-pointer hover:bg-muted/50 transition-colors",
                                             vencida && "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30",
-                                            isQuitada && "bg-emerald-50/50 dark:bg-emerald-950/10 opacity-70"
+                                            isQuitada && "bg-emerald-50/50 dark:bg-emerald-950/10 opacity-70",
+                                            selectedIds.includes(conta.id) && "bg-primary/5 hover:bg-primary/10"
                                         )}
-                                        onClick={() => onView?.(conta.id)}
+                                        onClick={(e) => {
+                                            // Always open view on row click, unless it was inside a non-propagating element
+                                            onView?.(conta.id)
+                                        }}
                                     >
+                                        {enableSelection && (
+                                            <TableCell className="w-[40px]" onClick={(e) => e.stopPropagation()}>
+                                                <div onClick={(e) => handleSelectOne(conta.id, !selectedIds.includes(conta.id), e.shiftKey)}>
+                                                    <Checkbox
+                                                        checked={selectedIds.includes(conta.id)}
+                                                        // onCheckedChange handled by parent div to capture shiftKey
+                                                        className="pointer-events-none" // let click pass through to div
+                                                        aria-label={`Selecionar ${conta.descricao}`}
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                        )}
                                         <TableCell>
                                             <span className="text-sm text-muted-foreground">
                                                 {conta.data_emissao ? formatDate(conta.data_emissao) : '-'}
