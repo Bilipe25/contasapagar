@@ -232,10 +232,6 @@ export default function ContasPage() {
                         Gerencie suas contas e pagamentos
                     </p>
                 </div>
-                <Button onClick={() => setIsFormOpen(true)} size="lg" className="hidden sm:flex">
-                    <Plus className="mr-2 h-5 w-5" />
-                    Nova Conta
-                </Button>
             </div>
 
             {/* Sticky Search Bar - Mobile Only */}
@@ -343,6 +339,16 @@ export default function ContasPage() {
                 onConfirm={confirmDelete}
                 isLoading={deleteMutation.isPending}
             />
+
+            {/* Floating Action Button - Desktop Only */}
+            <Button
+                onClick={() => setIsFormOpen(true)}
+                size="lg"
+                className="hidden sm:flex fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow z-50"
+            >
+                <Plus className="h-6 w-6" />
+                <span className="sr-only">Nova Conta</span>
+            </Button>
         </div>
     )
 }
