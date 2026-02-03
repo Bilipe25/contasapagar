@@ -31,6 +31,7 @@ import {
     SlidersHorizontal,
 } from 'lucide-react'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { cn } from '@/lib/utils'
 
 interface Fornecedor {
@@ -324,22 +325,15 @@ export function ContasFilters({
                             <Building2 className="h-3 w-3" />
                             Fornecedor
                         </label>
-                        <Select
-                            value={filtroFornecedor || 'all'}
-                            onValueChange={(v) => onFornecedorChange(v === 'all' ? null : v)}
-                        >
-                            <SelectTrigger className="h-9 bg-background">
-                                <SelectValue placeholder="Selecionar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                {fornecedores?.map((f) => (
-                                    <SelectItem key={f.id} value={f.id}>
-                                        {f.nome}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                            options={fornecedores?.map(f => ({ value: f.id, label: f.nome })) || []}
+                            value={filtroFornecedor}
+                            onChange={onFornecedorChange}
+                            placeholder="Selecionar fornecedor"
+                            searchPlaceholder="Buscar fornecedor..."
+                            emptyText="Nenhum fornecedor encontrado"
+                            className="h-9 bg-background"
+                        />
                     </div>
 
                     {/* Categoria */}
@@ -348,29 +342,15 @@ export function ContasFilters({
                             <Tag className="h-3 w-3" />
                             Categoria
                         </label>
-                        <Select
-                            value={filtroTipoDespesa || 'all'}
-                            onValueChange={(v) => onTipoDespesaChange(v === 'all' ? null : v)}
-                        >
-                            <SelectTrigger className="h-9 bg-background">
-                                <SelectValue placeholder="Selecionar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas</SelectItem>
-                                {tiposDespesa?.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                        <div className="flex items-center gap-2">
-                                            <div
-
-                                                className="h-2.5 w-2.5 rounded-full"
-                                                style={{ backgroundColor: t.cor || '#6366f1' }}
-                                            />
-                                            {t.nome}
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                            options={tiposDespesa?.map(t => ({ value: t.id, label: t.nome })) || []}
+                            value={filtroTipoDespesa}
+                            onChange={onTipoDespesaChange}
+                            placeholder="Selecionar categoria"
+                            searchPlaceholder="Buscar categoria..."
+                            emptyText="Nenhuma categoria encontrada"
+                            className="h-9 bg-background"
+                        />
                     </div>
 
                     {/* Empresa */}
