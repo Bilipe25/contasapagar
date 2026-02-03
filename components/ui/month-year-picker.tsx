@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, Calendar, X, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
     Popover,
@@ -9,7 +9,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { format, addMonths, subMonths, setMonth, setYear, startOfMonth, endOfMonth } from 'date-fns'
+import { format, addMonths, subMonths, setMonth, setYear, startOfMonth, endOfMonth, isBefore, isAfter, isSameMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 const months = [
@@ -25,6 +25,8 @@ interface MonthYearPickerProps {
     className?: string
 }
 
+type SelectionMode = 'single' | 'range'
+
 export function MonthYearPicker({
     value,
     onChange,
@@ -32,9 +34,21 @@ export function MonthYearPicker({
     className
 }: MonthYearPickerProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [mode, setMode] = useState<SelectionMode>('single')
+    const [rangeStart, setRangeStart] = useState<Date | null>(null)
+    const [rangeEnd, setRangeEnd] = useState<Date | null>(null)
+    const [hoverMonth, setHoverMonth] = useState<Date | null>(null)
+
     const currentDate = value || new Date()
-    const currentMonth = currentDate.getMonth()
-    const currentYear = currentDate.getFullYear()
+    const [viewYear, setViewYear] = useState(currentDate.getFullYear())
+
+    // Sync viewYear with value
+    useEffect(() => {
+        if (value) {
+            setViewYear(value.getFullYear())
+        }
+    }, [value])
+
     const isCurrentMonth = value &&
         value.getMonth() === new Date().getMonth() &&
         value.getFullYear() === new Date().getFullYear()
@@ -43,35 +57,80 @@ export function MonthYearPicker({
         const newDate = subMonths(currentDate, 1)
         onChange(newDate)
         updatePeriod(newDate)
+        setRangeStart(null)
+        setRangeEnd(null)
     }
 
     const handleNextMonth = () => {
         const newDate = addMonths(currentDate, 1)
         onChange(newDate)
         updatePeriod(newDate)
+        setRangeStart(null)
+        setRangeEnd(null)
     }
 
     const handleMonthSelect = (monthIndex: number) => {
-        const newDate = setMonth(currentDate, monthIndex)
-        onChange(newDate)
-        updatePeriod(newDate)
-        setIsOpen(false)
+        const selectedDate = setMonth(setYear(new Date(), viewYear), monthIndex)
+
+        if (mode === 'single') {
+            onChange(selectedDate)
+            updatePeriod(selectedDate)
+            setIsOpen(false)
+        } else {
+            // Range mode
+            if (!rangeStart || (rangeStart && rangeEnd)) {
+                // Start new range
+                setRangeStart(selectedDate)
+                setRangeEnd(null)
+            } else {
+                // Complete the range
+                if (isBefore(selectedDate, rangeStart)) {
+                    setRangeEnd(rangeStart)
+                    setRangeStart(selectedDate)
+                } else {
+                    setRangeEnd(selectedDate)
+                }
+            }
+        }
+    }
+
+    const handleApplyRange = () => {
+        if (rangeStart && rangeEnd) {
+            onChange(rangeStart)
+            if (onPeriodChange) {
+                const start = startOfMonth(rangeStart)
+                const end = endOfMonth(rangeEnd)
+                onPeriodChange(
+                    format(start, 'yyyy-MM-dd'),
+                    format(end, 'yyyy-MM-dd')
+                )
+            }
+            setIsOpen(false)
+        } else if (rangeStart) {
+            // If only start selected, use it as single month
+            onChange(rangeStart)
+            updatePeriod(rangeStart)
+            setIsOpen(false)
+        }
     }
 
     const handleYearChange = (delta: number) => {
-        const newDate = setYear(currentDate, currentYear + delta)
-        onChange(newDate)
-        updatePeriod(newDate)
+        setViewYear(prev => prev + delta)
     }
 
     const handleThisMonth = () => {
         const now = new Date()
         onChange(now)
         updatePeriod(now)
+        setRangeStart(null)
+        setRangeEnd(null)
+        setMode('single')
     }
 
     const handleClearPeriod = () => {
         onChange(null)
+        setRangeStart(null)
+        setRangeEnd(null)
         if (onPeriodChange) {
             onPeriodChange(null, null)
         }
@@ -88,9 +147,45 @@ export function MonthYearPicker({
         }
     }
 
-    const displayText = value
-        ? format(value, "MMMM 'de' yyyy", { locale: ptBR })
-        : 'Todos os períodos'
+    const isInRange = (monthIndex: number) => {
+        if (!rangeStart) return false
+        const monthDate = setMonth(setYear(new Date(), viewYear), monthIndex)
+
+        if (rangeEnd) {
+            return (
+                (isSameMonth(monthDate, rangeStart) || isAfter(monthDate, rangeStart)) &&
+                (isSameMonth(monthDate, rangeEnd) || isBefore(monthDate, rangeEnd))
+            )
+        } else if (hoverMonth && mode === 'range') {
+            const tempEnd = isBefore(hoverMonth, rangeStart) ? rangeStart : hoverMonth
+            const tempStart = isBefore(hoverMonth, rangeStart) ? hoverMonth : rangeStart
+            return (
+                (isSameMonth(monthDate, tempStart) || isAfter(monthDate, tempStart)) &&
+                (isSameMonth(monthDate, tempEnd) || isBefore(monthDate, tempEnd))
+            )
+        }
+        return false
+    }
+
+    const isRangeStart = (monthIndex: number) => {
+        if (!rangeStart) return false
+        return monthIndex === rangeStart.getMonth() && viewYear === rangeStart.getFullYear()
+    }
+
+    const isRangeEnd = (monthIndex: number) => {
+        if (!rangeEnd) return false
+        return monthIndex === rangeEnd.getMonth() && viewYear === rangeEnd.getFullYear()
+    }
+
+    // Format display text
+    let displayText = 'Todos os períodos'
+    if (rangeStart && rangeEnd && mode === 'range') {
+        const startStr = format(rangeStart, 'MMM yyyy', { locale: ptBR })
+        const endStr = format(rangeEnd, 'MMM yyyy', { locale: ptBR })
+        displayText = `${startStr} - ${endStr}`
+    } else if (value) {
+        displayText = format(value, "MMMM 'de' yyyy", { locale: ptBR })
+    }
 
     return (
         <div className={cn("flex items-center gap-1", className)}>
@@ -111,86 +206,167 @@ export function MonthYearPicker({
                     <Button
                         variant="outline"
                         className={cn(
-                            "min-w-[160px] justify-center font-medium gap-2",
+                            "min-w-[180px] justify-center font-medium gap-2",
                             !value && "text-muted-foreground"
                         )}
                     >
                         <Calendar className="h-4 w-4" />
-                        <span className="capitalize">{displayText}</span>
+                        <span className="capitalize truncate">{displayText}</span>
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[280px] p-3" align="center">
-                    {/* Year Navigation */}
-                    <div className="flex items-center justify-between mb-3">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleYearChange(-1)}
+                <PopoverContent className="w-[300px] p-0" align="center">
+                    {/* Mode Toggle */}
+                    <div className="flex border-b">
+                        <button
+                            className={cn(
+                                "flex-1 px-4 py-2.5 text-sm font-medium transition-colors",
+                                mode === 'single'
+                                    ? "bg-primary/10 text-primary border-b-2 border-primary"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                            )}
+                            onClick={() => {
+                                setMode('single')
+                                setRangeStart(null)
+                                setRangeEnd(null)
+                            }}
                         >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="font-semibold text-lg">{currentYear}</span>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleYearChange(1)}
+                            Mês único
+                        </button>
+                        <button
+                            className={cn(
+                                "flex-1 px-4 py-2.5 text-sm font-medium transition-colors",
+                                mode === 'range'
+                                    ? "bg-primary/10 text-primary border-b-2 border-primary"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                            )}
+                            onClick={() => {
+                                setMode('range')
+                                setRangeStart(null)
+                                setRangeEnd(null)
+                            }}
                         >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
+                            Período
+                        </button>
                     </div>
 
-                    {/* Month Grid */}
-                    <div className="grid grid-cols-3 gap-2">
-                        {months.map((month, index) => {
-                            const isSelected = value &&
-                                index === currentMonth &&
-                                currentYear === value.getFullYear()
-                            const isNow = index === new Date().getMonth() &&
-                                currentYear === new Date().getFullYear()
+                    <div className="p-3">
+                        {/* Year Navigation */}
+                        <div className="flex items-center justify-between mb-3">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleYearChange(-1)}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="font-semibold text-lg">{viewYear}</span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleYearChange(1)}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
 
-                            return (
+                        {/* Range Selection Helper */}
+                        {mode === 'range' && (
+                            <div className="mb-3 p-2 rounded-lg bg-muted/50 text-center text-xs text-muted-foreground">
+                                {!rangeStart && "Selecione o mês inicial"}
+                                {rangeStart && !rangeEnd && (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <span className="font-medium text-foreground">
+                                            {format(rangeStart, 'MMM yyyy', { locale: ptBR })}
+                                        </span>
+                                        <ArrowRight className="h-3 w-3" />
+                                        <span>Selecione o mês final</span>
+                                    </span>
+                                )}
+                                {rangeStart && rangeEnd && (
+                                    <span className="flex items-center justify-center gap-2 text-foreground font-medium">
+                                        {format(rangeStart, 'MMM yyyy', { locale: ptBR })}
+                                        <ArrowRight className="h-3 w-3" />
+                                        {format(rangeEnd, 'MMM yyyy', { locale: ptBR })}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Month Grid */}
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {months.map((month, index) => {
+                                const monthDate = setMonth(setYear(new Date(), viewYear), index)
+                                const isSelected = mode === 'single' && value &&
+                                    index === value.getMonth() &&
+                                    viewYear === value.getFullYear()
+                                const isNow = index === new Date().getMonth() &&
+                                    viewYear === new Date().getFullYear()
+                                const inRange = mode === 'range' && isInRange(index)
+                                const isStart = mode === 'range' && isRangeStart(index)
+                                const isEnd = mode === 'range' && isRangeEnd(index)
+
+                                return (
+                                    <Button
+                                        key={month}
+                                        variant={isSelected || isStart || isEnd ? "default" : "ghost"}
+                                        size="sm"
+                                        className={cn(
+                                            "h-9 text-sm relative",
+                                            isNow && !isSelected && !isStart && !isEnd && "border border-primary text-primary",
+                                            inRange && !isStart && !isEnd && "bg-primary/20 text-primary hover:bg-primary/30",
+                                            isStart && "rounded-r-none",
+                                            isEnd && "rounded-l-none",
+                                            inRange && !isStart && !isEnd && "rounded-none"
+                                        )}
+                                        onClick={() => handleMonthSelect(index)}
+                                        onMouseEnter={() => mode === 'range' && rangeStart && !rangeEnd && setHoverMonth(monthDate)}
+                                        onMouseLeave={() => setHoverMonth(null)}
+                                    >
+                                        {month.substring(0, 3)}
+                                    </Button>
+                                )
+                            })}
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="flex gap-2 mt-3 pt-3 border-t">
+                            {mode === 'range' && rangeStart ? (
                                 <Button
-                                    key={month}
-                                    variant={isSelected ? "default" : "ghost"}
+                                    variant="default"
                                     size="sm"
-                                    className={cn(
-                                        "h-9 text-sm",
-                                        isNow && !isSelected && "border border-primary text-primary"
-                                    )}
-                                    onClick={() => handleMonthSelect(index)}
+                                    className="flex-1"
+                                    onClick={handleApplyRange}
+                                    disabled={!rangeStart}
                                 >
-                                    {month.substring(0, 3)}
+                                    Aplicar
                                 </Button>
-                            )
-                        })}
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="flex gap-2 mt-3 pt-3 border-t">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => {
-                                handleThisMonth()
-                                setIsOpen(false)
-                            }}
-                        >
-                            Este mês
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => {
-                                handleClearPeriod()
-                                setIsOpen(false)
-                            }}
-                        >
-                            Limpar
-                        </Button>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => {
+                                        handleThisMonth()
+                                        setIsOpen(false)
+                                    }}
+                                >
+                                    Este mês
+                                </Button>
+                            )}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => {
+                                    handleClearPeriod()
+                                    setIsOpen(false)
+                                }}
+                            >
+                                Limpar
+                            </Button>
+                        </div>
                     </div>
                 </PopoverContent>
             </Popover>
@@ -216,7 +392,7 @@ export function MonthYearPicker({
                 >
                     Hoje
                 </Button>
-                {value && (
+                {(value || (rangeStart && rangeEnd)) && (
                     <Button
                         variant="ghost"
                         size="icon"
