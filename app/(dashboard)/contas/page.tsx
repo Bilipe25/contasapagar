@@ -344,10 +344,11 @@ export default function ContasPage() {
             <Button
                 onClick={() => setIsFormOpen(true)}
                 size="lg"
-                className="hidden sm:flex fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow z-50"
+                className="hidden sm:flex fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all z-50 focus:ring-4 focus:ring-primary/30 focus:outline-none"
+                aria-label="Criar nova conta a pagar"
+                title="Nova Conta (Ctrl+N)"
             >
-                <Plus className="h-6 w-6" />
-                <span className="sr-only">Nova Conta</span>
+                <Plus className="h-6 w-6" aria-hidden="true" />
             </Button>
         </div>
     )
