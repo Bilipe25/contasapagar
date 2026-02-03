@@ -38,6 +38,14 @@ export const fornecedoresRouter = router({
                 email: z.string().email().optional().or(z.literal('')),
                 telefone: z.string().optional(),
                 observacoes: z.string().optional(),
+                // Campos de endereço
+                logradouro: z.string().optional(),
+                numero: z.string().optional(),
+                complemento: z.string().optional(),
+                bairro: z.string().optional(),
+                cidade: z.string().optional(),
+                uf: z.string().optional(),
+                cep: z.string().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -65,6 +73,14 @@ export const fornecedoresRouter = router({
                 email: z.string().email().optional().or(z.literal('')),
                 telefone: z.string().optional(),
                 observacoes: z.string().optional(),
+                // Campos de endereço
+                logradouro: z.string().optional(),
+                numero: z.string().optional(),
+                complemento: z.string().optional(),
+                bairro: z.string().optional(),
+                cidade: z.string().optional(),
+                uf: z.string().optional(),
+                cep: z.string().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {

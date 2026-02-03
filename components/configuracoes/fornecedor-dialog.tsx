@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { trpc } from '@/lib/trpc/client'
+import { consultarCNPJ, formatarCNPJ, formatarCEP, formatarTelefone, limparCNPJ } from '@/lib/api/consulta-cnpj'
 import {
     Dialog,
     DialogContent,
@@ -24,7 +25,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Loader2, Building2 } from 'lucide-react'
+import { Loader2, Building2, Search, MapPin, Phone, Mail, FileText } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
 
 const schema = z.object({
     nome: z.string().min(1, 'Nome é obrigatório'),
@@ -32,6 +34,14 @@ const schema = z.object({
     email: z.string().email('Email inválido').optional().or(z.literal('')),
     telefone: z.string().optional(),
     observacoes: z.string().optional(),
+    // Campos de endereço
+    logradouro: z.string().optional(),
+    numero: z.string().optional(),
+    complemento: z.string().optional(),
+    bairro: z.string().optional(),
+    cidade: z.string().optional(),
+    uf: z.string().optional(),
+    cep: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -45,6 +55,7 @@ interface FornecedorDialogProps {
 export function FornecedorDialog({ open, onOpenChange, fornecedorId }: FornecedorDialogProps) {
     const utils = trpc.useUtils()
     const isEditing = !!fornecedorId
+    const [isConsultingCNPJ, setIsConsultingCNPJ] = useState(false)
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -54,6 +65,13 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
             email: '',
             telefone: '',
             observacoes: '',
+            logradouro: '',
+            numero: '',
+            complemento: '',
+            bairro: '',
+            cidade: '',
+            uf: '',
+            cep: '',
         },
     })
 
@@ -72,6 +90,13 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 email: fornecedor.email || '',
                 telefone: fornecedor.telefone || '',
                 observacoes: fornecedor.observacoes || '',
+                logradouro: fornecedor.logradouro || '',
+                numero: fornecedor.numero || '',
+                complemento: fornecedor.complemento || '',
+                bairro: fornecedor.bairro || '',
+                cidade: fornecedor.cidade || '',
+                uf: fornecedor.uf || '',
+                cep: fornecedor.cep || '',
             })
         } else if (!isEditing) {
             form.reset({
@@ -80,6 +105,13 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 email: '',
                 telefone: '',
                 observacoes: '',
+                logradouro: '',
+                numero: '',
+                complemento: '',
+                bairro: '',
+                cidade: '',
+                uf: '',
+                cep: '',
             })
         }
     }, [fornecedor, isEditing, form])
@@ -108,6 +140,72 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
         },
     })
 
+    const handleConsultarCNPJ = async () => {
+        const cnpj = form.getValues('cnpj_cpf')
+        if (!cnpj || limparCNPJ(cnpj).length !== 14) {
+            toast.error('Digite um CNPJ válido com 14 dígitos')
+            return
+        }
+
+        setIsConsultingCNPJ(true)
+        try {
+            const dados = await consultarCNPJ(cnpj)
+
+            // Preencher os campos com os dados retornados
+            form.setValue('nome', dados.razao_social)
+            form.setValue('cnpj_cpf', dados.cnpj)
+            form.setValue('logradouro', dados.logradouro)
+            form.setValue('numero', dados.numero)
+            form.setValue('complemento', dados.complemento)
+            form.setValue('bairro', dados.bairro)
+            form.setValue('cidade', dados.municipio)
+            form.setValue('uf', dados.uf)
+            form.setValue('cep', dados.cep)
+
+            if (dados.telefone1) {
+                form.setValue('telefone', dados.telefone1)
+            }
+            if (dados.email) {
+                form.setValue('email', dados.email)
+            }
+
+            toast.success('Dados do CNPJ carregados!', {
+                description: dados.nome_fantasia || dados.razao_social
+            })
+        } catch (error) {
+            toast.error('Erro ao consultar CNPJ', {
+                description: error instanceof Error ? error.message : 'Tente novamente'
+            })
+        } finally {
+            setIsConsultingCNPJ(false)
+        }
+    }
+
+    // Formatar CNPJ enquanto digita
+    const handleCNPJChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+        const limpo = limparCNPJ(value)
+        if (limpo.length <= 14) {
+            form.setValue('cnpj_cpf', limpo.length === 14 ? formatarCNPJ(limpo) : value)
+        }
+    }
+
+    // Formatar CEP enquanto digita
+    const handleCEPChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/\D/g, '')
+        if (value.length <= 8) {
+            form.setValue('cep', value.length === 8 ? formatarCEP(value) : value)
+        }
+    }
+
+    // Formatar telefone enquanto digita
+    const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/\D/g, '')
+        if (value.length <= 11) {
+            form.setValue('telefone', value.length >= 10 ? formatarTelefone(value) : value)
+        }
+    }
+
     const onSubmit = (data: FormValues) => {
         if (isEditing && fornecedorId) {
             updateMutation.mutate({ id: fornecedorId, ...data })
@@ -123,7 +221,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
             if (!newOpen) form.reset()
             onOpenChange(newOpen)
         }}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Building2 className="h-5 w-5" />
@@ -131,45 +229,61 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                     </DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        {/* Nome */}
-                        <FormField
-                            control={form.control}
-                            name="nome"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Nome *</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Nome do fornecedor" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                        {/* CNPJ/CPF e Telefone */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Seção: Dados Básicos */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <FileText className="h-4 w-4" />
+                                Dados Básicos
+                            </div>
+
+                            {/* CNPJ/CPF com botão de consulta */}
+                            <div className="flex gap-2">
+                                <FormField
+                                    control={form.control}
+                                    name="cnpj_cpf"
+                                    render={({ field }) => (
+                                        <FormItem className="flex-1">
+                                            <FormLabel>CNPJ/CPF</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="00.000.000/0000-00"
+                                                    {...field}
+                                                    onChange={handleCNPJChange}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <div className="flex items-end">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={handleConsultarCNPJ}
+                                        disabled={isConsultingCNPJ}
+                                        className="gap-2"
+                                    >
+                                        {isConsultingCNPJ ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Search className="h-4 w-4" />
+                                        )}
+                                        Consultar
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Nome */}
                             <FormField
                                 control={form.control}
-                                name="cnpj_cpf"
+                                name="nome"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>CNPJ/CPF</FormLabel>
+                                        <FormLabel>Nome / Razão Social *</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="00.000.000/0000-00" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="telefone"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Telefone</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="(00) 00000-0000" {...field} />
+                                            <Input placeholder="Nome do fornecedor" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -177,20 +291,167 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                             />
                         </div>
 
-                        {/* Email */}
-                        <FormField
-                            control={form.control}
-                            name="email"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Email</FormLabel>
-                                    <FormControl>
-                                        <Input type="email" placeholder="contato@fornecedor.com" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <Separator />
+
+                        {/* Seção: Contato */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <Phone className="h-4 w-4" />
+                                Contato
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="telefone"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Telefone</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="(00) 00000-0000"
+                                                    {...field}
+                                                    onChange={handleTelefoneChange}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <FormControl>
+                                                <Input type="email" placeholder="contato@fornecedor.com" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Seção: Endereço */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <MapPin className="h-4 w-4" />
+                                Endereço
+                            </div>
+
+                            {/* CEP e UF */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="cep"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>CEP</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="00000-000"
+                                                    {...field}
+                                                    onChange={handleCEPChange}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="uf"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>UF</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="SP" maxLength={2} {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="cidade"
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-2">
+                                            <FormLabel>Cidade</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="São Paulo" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            {/* Logradouro e Número */}
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="logradouro"
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-2 sm:col-span-3">
+                                            <FormLabel>Logradouro</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Rua, Avenida..." {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="numero"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Número</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="123" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            {/* Complemento e Bairro */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="complemento"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Complemento</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Sala, Bloco..." {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="bairro"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Bairro</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Centro" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </div>
+
+                        <Separator />
 
                         {/* Observações */}
                         <FormField
