@@ -176,15 +176,15 @@ export const contasRouter = router({
                 .insert({
                     user_id: ctx.user.id,
                     descricao: input.descricao,
-                    fornecedor_id: input.fornecedor_id,
-                    tipo_despesa_id: input.tipo_despesa_id,
-                    empresa_id: input.empresa_id,
+                    fornecedor_id: input.fornecedor_id || null,
+                    tipo_despesa_id: input.tipo_despesa_id || null,
+                    empresa_id: input.empresa_id || null,
                     data_emissao: input.data_emissao,
                     total_parcelas: input.parcelas?.length || input.total_parcelas,
                     valor_total: valorTotal,
                     observacoes: input.observacoes,
                     status: 'ativa',
-                    banco_id: input.banco_id,
+                    banco_id: input.banco_id || null,
                 })
                 .select()
                 .single()
@@ -324,9 +324,18 @@ export const contasRouter = router({
         .mutation(async ({ ctx, input }) => {
             const { id, ...updateData } = input
 
+            // Sanitize empty strings to null for UUID fields to avoid 22P02 error
+            const sanitizedUpdateData = {
+                ...updateData,
+                ...(updateData.fornecedor_id !== undefined && { fornecedor_id: updateData.fornecedor_id || null }),
+                ...(updateData.tipo_despesa_id !== undefined && { tipo_despesa_id: updateData.tipo_despesa_id || null }),
+                ...(updateData.empresa_id !== undefined && { empresa_id: updateData.empresa_id || null }),
+                ...(updateData.banco_id !== undefined && { banco_id: updateData.banco_id || null }),
+            }
+
             const { data, error } = await ctx.supabase
                 .from('contas')
-                .update(updateData)
+                .update(sanitizedUpdateData)
                 .eq('id', id)
                 .eq('user_id', ctx.user.id)
                 .select()

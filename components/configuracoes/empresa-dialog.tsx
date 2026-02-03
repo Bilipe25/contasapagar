@@ -26,13 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Loader2, Building2 } from 'lucide-react'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
+import { BankSelect } from '@/components/common/bank-select'
 
 // Função para formatar CNPJ
 function formatCNPJ(value: string): string {
@@ -92,7 +86,6 @@ export function EmpresaDialog({ open, onOpenChange, empresaId }: EmpresaDialogPr
         },
     })
 
-    const { data: bancos } = trpc.bancos.list.useQuery()
 
     // Fetch empresa if editing
     const { data: empresa, isLoading: isLoadingEmpresa } = trpc.empresas.getById.useQuery(empresaId!, {
@@ -318,6 +311,22 @@ export function EmpresaDialog({ open, onOpenChange, empresaId }: EmpresaDialogPr
                                                 {...field}
                                             />
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Banco Padrão */}
+                            <FormField
+                                control={form.control}
+                                name="banco_padrao_id"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Banco Padrão (Opcional)</FormLabel>
+                                        <BankSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                        />
                                         <FormMessage />
                                     </FormItem>
                                 )}

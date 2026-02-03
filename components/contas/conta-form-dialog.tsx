@@ -28,6 +28,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import { BankSelect } from '@/components/common/bank-select'
 import {
     Popover,
     PopoverContent,
@@ -131,7 +132,8 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
     const { data: fornecedores } = trpc.fornecedores.list.useQuery()
     const { data: tiposDespesa } = trpc.tiposDespesa.list.useQuery()
     const { data: empresas } = trpc.empresas.list.useQuery()
-    const { data: bancos } = trpc.bancos.list.useQuery()
+    // Bancos fetched internally by BankSelect
+
 
     // Fetch conta if editing
     const { data: conta, isLoading: isLoadingConta } = trpc.contas.getById.useQuery(contaId!, {
@@ -209,6 +211,10 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
         const empresa = empresas.find(e => e.id === selectedEmpresaId)
         if (empresa?.banco_padrao_id) {
             form.setValue('banco_id', empresa.banco_padrao_id)
+        } else {
+            // If company has no default bank, we might want to plain it or leave it?
+            // User requested refinements. Let's clear it to match the company.
+            form.setValue('banco_id', null)
         }
     }, [selectedEmpresaId, empresas, isEditing, form])
 
@@ -740,24 +746,10 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Banco (Opcional)</FormLabel>
-                                                    <Select
-                                                        onValueChange={(value) => field.onChange(value === 'none' ? null : value)}
-                                                        value={field.value || 'none'}
-                                                    >
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Selecione um banco" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="none">Nenhum</SelectItem>
-                                                            {bancos?.map((banco) => (
-                                                                <SelectItem key={banco.id} value={banco.id}>
-                                                                    {banco.codigo ? `${banco.nome} (${banco.codigo})` : banco.nome}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <BankSelect
+                                                        value={field.value}
+                                                        onChange={field.onChange}
+                                                    />
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
