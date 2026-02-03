@@ -11,6 +11,7 @@ export const contasRouter = router({
                 fornecedorId: z.string().optional(),
                 tipoDespesaId: z.string().optional(),
                 empresaId: z.string().optional(),
+                bancoId: z.string().optional(),
                 dataInicio: z.string().optional(),
                 dataFim: z.string().optional(),
             }).optional()
@@ -23,6 +24,7 @@ export const contasRouter = router({
                     fornecedores(id, nome),
                     tipos_despesa(id, nome, cor),
                     empresas(id, razao_social, nome_fantasia, cnpj),
+                    bancos(id, nome),
                     ${(input?.dataInicio || input?.dataFim) ? 'parcelas!inner' : 'parcelas'}(id, numero_parcela, valor_final, status, data_vencimento, data_pagamento)
                 `)
                 .eq('user_id', ctx.user.id)
@@ -39,6 +41,9 @@ export const contasRouter = router({
             }
             if (input?.empresaId) {
                 query = query.eq('empresa_id', input.empresaId)
+            }
+            if (input?.bancoId) {
+                query = query.eq('banco_id', input.bancoId)
             }
             if (input?.dataInicio) {
                 query = query.gte('parcelas.data_vencimento', input.dataInicio)

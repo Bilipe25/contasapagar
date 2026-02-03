@@ -28,6 +28,7 @@ import {
     Building2,
     Tag,
     Briefcase,
+    Landmark,
     SlidersHorizontal,
 } from 'lucide-react'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -72,6 +73,10 @@ interface ContasFiltersProps {
     filtroEmpresa: string | null
     onEmpresaChange: (value: string | null) => void
     empresas?: Empresa[]
+    // Banco
+    filtroBanco: string | null
+    onBancoChange: (value: string | null) => void
+    bancos?: { id: string; nome: string }[]
     // Período
     mesSelecionado: Date | null
     onMesSelecionadoChange: (date: Date | null) => void
@@ -107,6 +112,9 @@ export function ContasFilters({
     filtroEmpresa,
     onEmpresaChange,
     empresas,
+    filtroBanco,
+    onBancoChange,
+    bancos,
     mesSelecionado,
     onMesSelecionadoChange,
     onPeriodChange,
@@ -131,6 +139,7 @@ export function ContasFilters({
     const selectedFornecedor = fornecedores?.find(f => f.id === filtroFornecedor)
     const selectedTipo = tiposDespesa?.find(t => t.id === filtroTipoDespesa)
     const selectedEmpresa = empresas?.find(e => e.id === filtroEmpresa)
+    const selectedBanco = bancos?.find(b => b.id === filtroBanco)
 
     const handleStatusSelect = (value: string) => {
         if (value === 'vencidas') {
@@ -304,6 +313,22 @@ export function ContasFilters({
                         </Badge>
                     )}
 
+                    {/* Banco Chip */}
+                    {selectedBanco && (
+                        <Badge variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                            <Landmark className="h-3 w-3" />
+                            {selectedBanco.nome}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-4 w-4 p-0 ml-1 hover:bg-black/10"
+                                onClick={() => onBancoChange(null)}
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </Badge>
+                    )}
+
                     {/* Clear All */}
                     <Button
                         variant="ghost"
@@ -318,7 +343,7 @@ export function ContasFilters({
 
             {/* Advanced Filters Panel */}
             {showAdvanced && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/50 border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 rounded-lg bg-muted/50 border">
                     {/* Fornecedor */}
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -375,6 +400,23 @@ export function ContasFilters({
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    {/* Banco */}
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                            <Landmark className="h-3 w-3" />
+                            Banco
+                        </label>
+                        <SearchableSelect
+                            options={bancos?.map(b => ({ value: b.id, label: b.nome })) || []}
+                            value={filtroBanco}
+                            onChange={onBancoChange}
+                            placeholder="Selecionar banco"
+                            searchPlaceholder="Buscar banco..."
+                            emptyText="Nenhum banco encontrado"
+                            className="h-9 bg-background"
+                        />
                     </div>
                 </div>
             )}

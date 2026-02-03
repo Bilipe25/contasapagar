@@ -51,6 +51,7 @@ export default function ContasPage() {
         filtroFornecedor,
         filtroTipoDespesa,
         filtroEmpresa,
+        filtroBanco,
         periodoInicio,
         periodoFim,
         visualizacao,
@@ -58,6 +59,7 @@ export default function ContasPage() {
         setFiltroFornecedor,
         setFiltroTipoDespesa,
         setFiltroEmpresa,
+        setFiltroBanco,
         setPeriodoInicio,
         setPeriodoFim,
         setVisualizacao,
@@ -101,6 +103,7 @@ export default function ContasPage() {
         fornecedorId: filtroFornecedor || undefined,
         tipoDespesaId: filtroTipoDespesa || undefined,
         empresaId: filtroEmpresa || undefined,
+        bancoId: filtroBanco || undefined,
         dataInicio: periodoInicio || undefined,
         dataFim: periodoFim || undefined,
     })
@@ -108,6 +111,7 @@ export default function ContasPage() {
     const { data: fornecedores } = trpc.fornecedores.list.useQuery()
     const { data: tiposDespesa } = trpc.tiposDespesa.list.useQuery()
     const { data: empresas } = trpc.empresas.list.useQuery()
+    const { data: bancos } = trpc.bancos.list.useQuery()
 
     // Calcular estatísticas
     const stats = contasData ? {
@@ -145,6 +149,7 @@ export default function ContasPage() {
         filtroFornecedor ||
         filtroTipoDespesa ||
         filtroEmpresa ||
+        filtroBanco ||
         periodoInicio ||
         periodoFim
     )
@@ -295,6 +300,9 @@ export default function ContasPage() {
                     filtroEmpresa={filtroEmpresa}
                     onEmpresaChange={setFiltroEmpresa}
                     empresas={empresas}
+                    filtroBanco={filtroBanco}
+                    onBancoChange={setFiltroBanco}
+                    bancos={bancos}
                     mesSelecionado={mesSelecionadoFiltro}
                     onMesSelecionadoChange={setMesSelecionadoFiltro}
                     onPeriodChange={(start, end) => {

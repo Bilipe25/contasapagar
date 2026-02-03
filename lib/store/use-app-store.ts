@@ -9,6 +9,7 @@ interface AppState {
     filtroFornecedor: string | null
     filtroTipoDespesa: string | null
     filtroEmpresa: string | null
+    filtroBanco: string | null
     periodoInicio: string | null
     periodoFim: string | null
 
@@ -22,6 +23,7 @@ interface AppState {
     setFiltroFornecedor: (id: string | null) => void
     setFiltroTipoDespesa: (id: string | null) => void
     setFiltroEmpresa: (id: string | null) => void
+    setFiltroBanco: (id: string | null) => void
     setPeriodoInicio: (inicio: string | null) => void
     setPeriodoFim: (fim: string | null) => void
     setPeriodo: (inicio: string | null, fim: string | null) => void
@@ -39,6 +41,7 @@ export const useAppStore = create<AppState>()(
             filtroFornecedor: null,
             filtroTipoDespesa: null,
             filtroEmpresa: null,
+            filtroBanco: null,
             periodoInicio: null,
             periodoFim: null,
             tema: 'system',
@@ -50,6 +53,7 @@ export const useAppStore = create<AppState>()(
             setFiltroFornecedor: (id) => set({ filtroFornecedor: id }),
             setFiltroTipoDespesa: (id) => set({ filtroTipoDespesa: id }),
             setFiltroEmpresa: (id) => set({ filtroEmpresa: id }),
+            setFiltroBanco: (id) => set({ filtroBanco: id }),
             setPeriodoInicio: (inicio) => set({ periodoInicio: inicio }),
             setPeriodoFim: (fim) => set({ periodoFim: fim }),
             setPeriodo: (inicio, fim) => set({ periodoInicio: inicio, periodoFim: fim }),
@@ -62,6 +66,7 @@ export const useAppStore = create<AppState>()(
                     filtroFornecedor: null,
                     filtroTipoDespesa: null,
                     filtroEmpresa: null,
+                    filtroBanco: null,
                     periodoInicio: null,
                     periodoFim: null,
                 }),
