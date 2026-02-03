@@ -42,6 +42,9 @@ const schema = z.object({
     cidade: z.string().optional(),
     uf: z.string().optional(),
     cep: z.string().optional(),
+    // Campos adicionais
+    inscricao_estadual: z.string().optional(),
+    situacao_cadastral: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -72,6 +75,8 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
             cidade: '',
             uf: '',
             cep: '',
+            inscricao_estadual: '',
+            situacao_cadastral: '',
         },
     })
 
@@ -97,6 +102,8 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 cidade: fornecedor.cidade || '',
                 uf: fornecedor.uf || '',
                 cep: fornecedor.cep || '',
+                inscricao_estadual: fornecedor.inscricao_estadual || '',
+                situacao_cadastral: fornecedor.situacao_cadastral || '',
             })
         } else if (!isEditing) {
             form.reset({
@@ -112,6 +119,8 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 cidade: '',
                 uf: '',
                 cep: '',
+                inscricao_estadual: '',
+                situacao_cadastral: '',
             })
         }
     }, [fornecedor, isEditing, form])
@@ -167,6 +176,12 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
             }
             if (dados.email) {
                 form.setValue('email', dados.email)
+            }
+            if (dados.inscricao_estadual) {
+                form.setValue('inscricao_estadual', dados.inscricao_estadual)
+            }
+            if (dados.situacao_cadastral) {
+                form.setValue('situacao_cadastral', dados.situacao_cadastral)
             }
 
             toast.success('Dados do CNPJ carregados!', {
@@ -289,6 +304,36 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                                     </FormItem>
                                 )}
                             />
+
+                            {/* Inscrição Estadual e Situação Cadastral */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="inscricao_estadual"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Inscrição Estadual</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="IE" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="situacao_cadastral"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Situação Cadastral</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Ativa" {...field} disabled className="bg-muted" />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
                         </div>
 
                         <Separator />

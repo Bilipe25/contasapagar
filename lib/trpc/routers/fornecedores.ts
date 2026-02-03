@@ -46,6 +46,9 @@ export const fornecedoresRouter = router({
                 cidade: z.string().optional(),
                 uf: z.string().optional(),
                 cep: z.string().optional(),
+                // Campos adicionais
+                inscricao_estadual: z.string().optional(),
+                situacao_cadastral: z.string().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -81,6 +84,9 @@ export const fornecedoresRouter = router({
                 cidade: z.string().optional(),
                 uf: z.string().optional(),
                 cep: z.string().optional(),
+                // Campos adicionais
+                inscricao_estadual: z.string().optional(),
+                situacao_cadastral: z.string().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {

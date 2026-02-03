@@ -15,6 +15,8 @@ export interface CNPJResponse {
     telefone1: string | null
     telefone2: string | null
     email: string | null
+    situacao_cadastral: string | null
+    inscricao_estadual: string | null
 }
 
 export interface CNPJError {
@@ -91,5 +93,7 @@ export async function consultarCNPJ(cnpj: string): Promise<CNPJResponse> {
         telefone1: data.ddd_telefone_1 ? formatarTelefone(data.ddd_telefone_1) : null,
         telefone2: data.ddd_telefone_2 ? formatarTelefone(data.ddd_telefone_2) : null,
         email: data.email || null,
+        situacao_cadastral: data.descricao_situacao_cadastral || null,
+        inscricao_estadual: data.inscricao_estadual || null,
     }
 }
