@@ -336,21 +336,13 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[650px]">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        {isEditing ? 'Editar Conta' : 'Nova Conta a Pagar'}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {isEditing
-                            ? 'Atualize as informações da conta'
-                            : 'Preencha os dados para criar uma nova conta a pagar'}
-                    </DialogDescription>
-                </DialogHeader>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[900px] p-0">
+                {/* Header Moderno */}
+
 
                 {isEditing && isLoadingConta ? (
-                    <div className="space-y-6 py-4">
+                    <div className="space-y-6 p-6">
+                        {/* Skeleton Loading mantido */}
                         <div className="space-y-4">
                             <div className="h-5 w-32 bg-muted animate-pulse rounded" />
                             <div className="grid gap-4 md:grid-cols-2">
@@ -370,173 +362,99 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                     </div>
                 ) : (
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                            {/* SEÇÃO: Informações Básicas */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
-                                    <Building2 className="h-4 w-4" />
-                                    Informações Básicas
-                                </div>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="contents">
+                            {/* Header Moderno com Empresa */}
+                            <div className="sticky top-0 z-10 bg-background border-b px-6 py-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                <DialogHeader className="space-y-1 text-left">
+                                    <DialogTitle className="flex items-center gap-2 text-xl">
+                                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                            <FileText className="h-5 w-5 text-primary" />
+                                        </div>
+                                        {isEditing ? 'Editar Conta' : 'Nova Conta a Pagar'}
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        {isEditing
+                                            ? 'Atualize as informações da conta'
+                                            : 'Preencha os dados para registrar uma nova conta'}
+                                    </DialogDescription>
+                                </DialogHeader>
 
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    {/* Fornecedor com busca + botão novo */}
+                                {/* Campo Empresa no Header */}
+                                <div className="w-full sm:w-[300px]">
                                     <FormField
                                         control={form.control}
-                                        name="fornecedor_id"
+                                        name="empresa_id"
                                         render={({ field }) => (
-                                            <FormItem className="flex flex-col">
-                                                <FormLabel>Fornecedor</FormLabel>
+                                            <FormItem className="flex flex-col space-y-1">
                                                 <div className="flex gap-2">
-                                                    <Popover open={comboFornecedor} onOpenChange={setComboFornecedor}>
+                                                    <Popover open={comboEmpresa} onOpenChange={setComboEmpresa}>
                                                         <PopoverTrigger asChild>
                                                             <FormControl>
                                                                 <Button
                                                                     variant="outline"
                                                                     role="combobox"
-                                                                    aria-expanded={comboFornecedor}
+                                                                    aria-expanded={comboEmpresa}
                                                                     className={cn(
-                                                                        "flex-1 justify-between font-normal",
-                                                                        !field.value && "text-muted-foreground"
-                                                                    )}
-                                                                >
-                                                                    {field.value
-                                                                        ? fornecedores?.find((f) => f.id === field.value)?.nome
-                                                                        : "Buscar fornecedor..."}
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-[300px] p-0" align="start">
-                                                            <Command>
-                                                                <CommandInput placeholder="Buscar fornecedor..." />
-                                                                <CommandList>
-                                                                    <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
-                                                                    <CommandGroup>
-                                                                        {fornecedores?.map((f) => (
-                                                                            <CommandItem
-                                                                                key={f.id}
-                                                                                value={f.nome}
-                                                                                onSelect={() => {
-                                                                                    field.onChange(f.id)
-                                                                                    setComboFornecedor(false)
-                                                                                }}
-                                                                            >
-                                                                                <Check
-                                                                                    className={cn(
-                                                                                        "mr-2 h-4 w-4",
-                                                                                        field.value === f.id ? "opacity-100" : "opacity-0"
-                                                                                    )}
-                                                                                />
-                                                                                {f.nome}
-                                                                            </CommandItem>
-                                                                        ))}
-                                                                    </CommandGroup>
-                                                                </CommandList>
-                                                            </Command>
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                    <Popover open={popoverFornecedor} onOpenChange={setPopoverFornecedor}>
-                                                        <PopoverTrigger asChild>
-                                                            <Button type="button" variant="outline" size="icon">
-                                                                <Plus className="h-4 w-4" />
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-64" align="end">
-                                                            <div className="space-y-2">
-                                                                <p className="text-sm font-medium">Novo Fornecedor</p>
-                                                                <Input
-                                                                    placeholder="Nome do fornecedor"
-                                                                    value={novoFornecedor}
-                                                                    onChange={(e) => setNovoFornecedor(e.target.value)}
-                                                                />
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    className="w-full"
-                                                                    disabled={!novoFornecedor || criarFornecedor.isPending}
-                                                                    onClick={() => criarFornecedor.mutate({ nome: novoFornecedor })}
-                                                                >
-                                                                    {criarFornecedor.isPending ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                    ) : (
-                                                                        'Criar'
-                                                                    )}
-                                                                </Button>
-                                                            </div>
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    {/* Categoria com busca + botão novo */}
-                                    <FormField
-                                        control={form.control}
-                                        name="tipo_despesa_id"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-col">
-                                                <FormLabel>Categoria</FormLabel>
-                                                <div className="flex gap-2">
-                                                    <Popover open={comboCategoria} onOpenChange={setComboCategoria}>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    role="combobox"
-                                                                    aria-expanded={comboCategoria}
-                                                                    className={cn(
-                                                                        "flex-1 justify-between font-normal",
+                                                                        "flex-1 justify-between font-normal h-9",
                                                                         !field.value && "text-muted-foreground"
                                                                     )}
                                                                 >
                                                                     {field.value ? (
-                                                                        <span className="flex items-center gap-2">
-                                                                            {tiposDespesa?.find((t) => t.id === field.value)?.cor && (
-                                                                                <span
-                                                                                    className="w-3 h-3 rounded-full"
-                                                                                    style={{ backgroundColor: tiposDespesa.find((t) => t.id === field.value)?.cor }}
-                                                                                />
-                                                                            )}
-                                                                            {tiposDespesa?.find((t) => t.id === field.value)?.nome}
+                                                                        <span className="flex items-center gap-2 truncate">
+                                                                            <Building2 className="h-3 w-3 shrink-0" />
+                                                                            <span className="truncate">
+                                                                                {empresas?.find((e) => e.id === field.value)?.nome_fantasia ||
+                                                                                    empresas?.find((e) => e.id === field.value)?.razao_social}
+                                                                            </span>
                                                                         </span>
                                                                     ) : (
-                                                                        "Buscar categoria..."
+                                                                        <span className="text-xs">Selecionar empresa...</span>
                                                                     )}
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                                                                 </Button>
                                                             </FormControl>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-[300px] p-0" align="start">
+                                                        <PopoverContent className="w-[300px] p-0" align="end">
                                                             <Command>
-                                                                <CommandInput placeholder="Buscar categoria..." />
+                                                                <CommandInput placeholder="Buscar empresa..." />
                                                                 <CommandList>
-                                                                    <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                                    <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
                                                                     <CommandGroup>
-                                                                        {tiposDespesa?.map((t) => (
+                                                                        <CommandItem
+                                                                            value="_limpar_"
+                                                                            onSelect={() => {
+                                                                                field.onChange('')
+                                                                                setComboEmpresa(false)
+                                                                            }}
+                                                                        >
+                                                                            <Check
+                                                                                className={cn(
+                                                                                    "mr-2 h-4 w-4",
+                                                                                    !field.value ? "opacity-100" : "opacity-0"
+                                                                                )}
+                                                                            />
+                                                                            <span className="text-muted-foreground">Nenhuma empresa</span>
+                                                                        </CommandItem>
+                                                                        {empresas?.map((e) => (
                                                                             <CommandItem
-                                                                                key={t.id}
-                                                                                value={t.nome}
+                                                                                key={e.id}
+                                                                                value={`${e.razao_social} ${e.nome_fantasia || ''} ${e.cnpj || ''}`}
                                                                                 onSelect={() => {
-                                                                                    field.onChange(t.id)
-                                                                                    setComboCategoria(false)
+                                                                                    field.onChange(e.id)
+                                                                                    setComboEmpresa(false)
                                                                                 }}
                                                                             >
                                                                                 <Check
                                                                                     className={cn(
                                                                                         "mr-2 h-4 w-4",
-                                                                                        field.value === t.id ? "opacity-100" : "opacity-0"
+                                                                                        field.value === e.id ? "opacity-100" : "opacity-0"
                                                                                     )}
                                                                                 />
-                                                                                <span className="flex items-center gap-2">
-                                                                                    {t.cor && (
-                                                                                        <span
-                                                                                            className="w-3 h-3 rounded-full"
-                                                                                            style={{ backgroundColor: t.cor }}
-                                                                                        />
+                                                                                <span className="flex flex-col truncate">
+                                                                                    <span className="truncate">{e.nome_fantasia || e.razao_social}</span>
+                                                                                    {e.cnpj && (
+                                                                                        <span className="text-xs text-muted-foreground">{e.cnpj}</span>
                                                                                     )}
-                                                                                    {t.nome}
                                                                                 </span>
                                                                             </CommandItem>
                                                                         ))}
@@ -545,31 +463,31 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                             </Command>
                                                         </PopoverContent>
                                                     </Popover>
-                                                    <Popover open={popoverCategoria} onOpenChange={setPopoverCategoria}>
+                                                    <Popover open={popoverEmpresa} onOpenChange={setPopoverEmpresa}>
                                                         <PopoverTrigger asChild>
-                                                            <Button type="button" variant="outline" size="icon">
+                                                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary">
                                                                 <Plus className="h-4 w-4" />
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-64" align="end">
                                                             <div className="space-y-2">
-                                                                <p className="text-sm font-medium">Nova Categoria</p>
+                                                                <p className="text-sm font-medium">Nova Empresa</p>
                                                                 <Input
-                                                                    placeholder="Nome da categoria"
-                                                                    value={novaCategoria}
-                                                                    onChange={(e) => setNovaCategoria(e.target.value)}
+                                                                    placeholder="Razão social"
+                                                                    value={novaEmpresa}
+                                                                    onChange={(e) => setNovaEmpresa(e.target.value)}
                                                                 />
                                                                 <Button
                                                                     type="button"
                                                                     size="sm"
                                                                     className="w-full"
-                                                                    disabled={!novaCategoria || criarCategoria.isPending}
-                                                                    onClick={() => criarCategoria.mutate({ nome: novaCategoria })}
+                                                                    disabled={!novaEmpresa || criarEmpresa.isPending}
+                                                                    onClick={() => criarEmpresa.mutate({ razao_social: novaEmpresa })}
                                                                 >
-                                                                    {criarCategoria.isPending ? (
+                                                                    {criarEmpresa.isPending ? (
                                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                                     ) : (
-                                                                        'Criar'
+                                                                        'Cadastrar'
                                                                     )}
                                                                 </Button>
                                                             </div>
@@ -581,185 +499,249 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                         )}
                                     />
                                 </div>
-
-                                {/* Empresa (opcional) */}
-                                <FormField
-                                    control={form.control}
-                                    name="empresa_id"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel>Empresa (opcional)</FormLabel>
-                                            <div className="flex gap-2">
-                                                <Popover open={comboEmpresa} onOpenChange={setComboEmpresa}>
-                                                    <PopoverTrigger asChild>
-                                                        <FormControl>
-                                                            <Button
-                                                                variant="outline"
-                                                                role="combobox"
-                                                                aria-expanded={comboEmpresa}
-                                                                className={cn(
-                                                                    "flex-1 justify-between font-normal",
-                                                                    !field.value && "text-muted-foreground"
-                                                                )}
-                                                            >
-                                                                {field.value ? (
-                                                                    <span className="flex items-center gap-2">
-                                                                        <Building2 className="h-3 w-3" />
-                                                                        {empresas?.find((e) => e.id === field.value)?.nome_fantasia ||
-                                                                            empresas?.find((e) => e.id === field.value)?.razao_social}
-                                                                    </span>
-                                                                ) : (
-                                                                    "Buscar empresa..."
-                                                                )}
-                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                            </Button>
-                                                        </FormControl>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-[300px] p-0" align="start">
-                                                        <Command>
-                                                            <CommandInput placeholder="Buscar empresa..." />
-                                                            <CommandList>
-                                                                <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
-                                                                <CommandGroup>
-                                                                    <CommandItem
-                                                                        value="_limpar_"
-                                                                        onSelect={() => {
-                                                                            field.onChange('')
-                                                                            setComboEmpresa(false)
-                                                                        }}
-                                                                    >
-                                                                        <Check
-                                                                            className={cn(
-                                                                                "mr-2 h-4 w-4",
-                                                                                !field.value ? "opacity-100" : "opacity-0"
-                                                                            )}
-                                                                        />
-                                                                        <span className="text-muted-foreground">Nenhuma empresa</span>
-                                                                    </CommandItem>
-                                                                    {empresas?.map((e) => (
-                                                                        <CommandItem
-                                                                            key={e.id}
-                                                                            value={`${e.razao_social} ${e.nome_fantasia || ''} ${e.cnpj || ''}`}
-                                                                            onSelect={() => {
-                                                                                field.onChange(e.id)
-                                                                                setComboEmpresa(false)
-                                                                            }}
-                                                                        >
-                                                                            <Check
-                                                                                className={cn(
-                                                                                    "mr-2 h-4 w-4",
-                                                                                    field.value === e.id ? "opacity-100" : "opacity-0"
-                                                                                )}
-                                                                            />
-                                                                            <span className="flex flex-col">
-                                                                                <span>{e.nome_fantasia || e.razao_social}</span>
-                                                                                {e.cnpj && (
-                                                                                    <span className="text-xs text-muted-foreground">{e.cnpj}</span>
-                                                                                )}
-                                                                            </span>
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            </CommandList>
-                                                        </Command>
-                                                    </PopoverContent>
-                                                </Popover>
-                                                <Popover open={popoverEmpresa} onOpenChange={setPopoverEmpresa}>
-                                                    <PopoverTrigger asChild>
-                                                        <Button type="button" variant="outline" size="icon">
-                                                            <Plus className="h-4 w-4" />
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-64" align="end">
-                                                        <div className="space-y-2">
-                                                            <p className="text-sm font-medium">Nova Empresa</p>
-                                                            <Input
-                                                                placeholder="Razão social"
-                                                                value={novaEmpresa}
-                                                                onChange={(e) => setNovaEmpresa(e.target.value)}
-                                                            />
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                className="w-full"
-                                                                disabled={!novaEmpresa || criarEmpresa.isPending}
-                                                                onClick={() => criarEmpresa.mutate({ razao_social: novaEmpresa })}
-                                                            >
-                                                                {criarEmpresa.isPending ? (
-                                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                                ) : (
-                                                                    'Cadastrar'
-                                                                )}
-                                                            </Button>
-                                                        </div>
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                {/* Descrição */}
-                                <FormField
-                                    control={form.control}
-                                    name="descricao"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Descrição</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Ex: Conta de luz, Aluguel..." {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
                             </div>
 
-                            {/* SEÇÃO: Valores e Parcelamento */}
-                            {!isEditing && (
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between border-b pb-2">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                            <DollarSign className="h-4 w-4" />
-                                            Valores e Parcelamento
+                            <div className="p-6">
+                                {/* Layout em 2 Colunas */}
+                                <div className="grid gap-6 lg:grid-cols-2">
+                                    {/* COLUNA ESQUERDA: Informações */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
+                                            <Building2 className="h-4 w-4" />
+                                            Informações
                                         </div>
-                                        {/* Atalhos de parcelas rápidas */}
-                                        <div className="flex items-center gap-1">
-                                            {[
-                                                { label: 'À Vista', value: '1' },
-                                                { label: '2x', value: '2' },
-                                                { label: '3x', value: '3' },
-                                                { label: '6x', value: '6' },
-                                                { label: '12x', value: '12' },
-                                            ].map((opt) => (
-                                                <Button
-                                                    key={opt.value}
-                                                    type="button"
-                                                    variant={totalParcelas === opt.value ? 'default' : 'outline'}
-                                                    size="sm"
-                                                    className="h-7 px-2 text-xs"
-                                                    onClick={() => form.setValue('total_parcelas', opt.value)}
-                                                >
-                                                    {opt.label}
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </div>
 
-                                    <div className="grid gap-4 md:grid-cols-3">
-                                        {/* Valor Total da Conta */}
+                                        {/* Fornecedor e Categoria Empilhados (Vertical) */}
+                                        <div className="space-y-3">
+                                            {/* Fornecedor com busca + botão novo */}
+                                            <FormField
+                                                control={form.control}
+                                                name="fornecedor_id"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex flex-col">
+                                                        <FormLabel>Fornecedor</FormLabel>
+                                                        <div className="flex gap-2">
+                                                            <Popover open={comboFornecedor} onOpenChange={setComboFornecedor}>
+                                                                <PopoverTrigger asChild>
+                                                                    <FormControl>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            role="combobox"
+                                                                            aria-expanded={comboFornecedor}
+                                                                            className={cn(
+                                                                                "flex-1 justify-between font-normal",
+                                                                                !field.value && "text-muted-foreground"
+                                                                            )}
+                                                                        >
+                                                                            {field.value
+                                                                                ? fornecedores?.find((f) => f.id === field.value)?.nome
+                                                                                : "Buscar fornecedor..."}
+                                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                        </Button>
+                                                                    </FormControl>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-[300px] p-0" align="start">
+                                                                    <Command>
+                                                                        <CommandInput placeholder="Buscar fornecedor..." />
+                                                                        <CommandList>
+                                                                            <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
+                                                                            <CommandGroup>
+                                                                                {fornecedores?.map((f) => (
+                                                                                    <CommandItem
+                                                                                        key={f.id}
+                                                                                        value={f.nome}
+                                                                                        onSelect={() => {
+                                                                                            field.onChange(f.id)
+                                                                                            setComboFornecedor(false)
+                                                                                        }}
+                                                                                    >
+                                                                                        <Check
+                                                                                            className={cn(
+                                                                                                "mr-2 h-4 w-4",
+                                                                                                field.value === f.id ? "opacity-100" : "opacity-0"
+                                                                                            )}
+                                                                                        />
+                                                                                        {f.nome}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                            <Popover open={popoverFornecedor} onOpenChange={setPopoverFornecedor}>
+                                                                <PopoverTrigger asChild>
+                                                                    <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                                                                        <Plus className="h-4 w-4" />
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-64" align="end">
+                                                                    <div className="space-y-2">
+                                                                        <p className="text-sm font-medium">Novo Fornecedor</p>
+                                                                        <Input
+                                                                            placeholder="Nome do fornecedor"
+                                                                            value={novoFornecedor}
+                                                                            onChange={(e) => setNovoFornecedor(e.target.value)}
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            className="w-full"
+                                                                            disabled={!novoFornecedor || criarFornecedor.isPending}
+                                                                            onClick={() => criarFornecedor.mutate({ nome: novoFornecedor })}
+                                                                        >
+                                                                            {criarFornecedor.isPending ? (
+                                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                            ) : (
+                                                                                'Criar'
+                                                                            )}
+                                                                        </Button>
+                                                                    </div>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            {/* Categoria com busca + botão novo */}
+                                            <FormField
+                                                control={form.control}
+                                                name="tipo_despesa_id"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex flex-col">
+                                                        <FormLabel>Categoria</FormLabel>
+                                                        <div className="flex gap-2">
+                                                            <Popover open={comboCategoria} onOpenChange={setComboCategoria}>
+                                                                <PopoverTrigger asChild>
+                                                                    <FormControl>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            role="combobox"
+                                                                            aria-expanded={comboCategoria}
+                                                                            className={cn(
+                                                                                "flex-1 justify-between font-normal",
+                                                                                !field.value && "text-muted-foreground"
+                                                                            )}
+                                                                        >
+                                                                            {field.value ? (
+                                                                                <span className="flex items-center gap-2">
+                                                                                    {tiposDespesa?.find((t) => t.id === field.value)?.cor && (
+                                                                                        <span
+                                                                                            className="w-3 h-3 rounded-full"
+                                                                                            style={{ backgroundColor: tiposDespesa.find((t) => t.id === field.value)?.cor }}
+                                                                                        />
+                                                                                    )}
+                                                                                    {tiposDespesa?.find((t) => t.id === field.value)?.nome}
+                                                                                </span>
+                                                                            ) : (
+                                                                                "Buscar categoria..."
+                                                                            )}
+                                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                        </Button>
+                                                                    </FormControl>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-[300px] p-0" align="start">
+                                                                    <Command>
+                                                                        <CommandInput placeholder="Buscar categoria..." />
+                                                                        <CommandList>
+                                                                            <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                                            <CommandGroup>
+                                                                                {tiposDespesa?.map((t) => (
+                                                                                    <CommandItem
+                                                                                        key={t.id}
+                                                                                        value={t.nome}
+                                                                                        onSelect={() => {
+                                                                                            field.onChange(t.id)
+                                                                                            setComboCategoria(false)
+                                                                                        }}
+                                                                                    >
+                                                                                        <Check
+                                                                                            className={cn(
+                                                                                                "mr-2 h-4 w-4",
+                                                                                                field.value === t.id ? "opacity-100" : "opacity-0"
+                                                                                            )}
+                                                                                        />
+                                                                                        <span className="flex items-center gap-2">
+                                                                                            {t.cor && (
+                                                                                                <span
+                                                                                                    className="w-3 h-3 rounded-full"
+                                                                                                    style={{ backgroundColor: t.cor }}
+                                                                                                />
+                                                                                            )}
+                                                                                            {t.nome}
+                                                                                        </span>
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                            <Popover open={popoverCategoria} onOpenChange={setPopoverCategoria}>
+                                                                <PopoverTrigger asChild>
+                                                                    <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                                                                        <Plus className="h-4 w-4" />
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-64" align="end">
+                                                                    <div className="space-y-2">
+                                                                        <p className="text-sm font-medium">Nova Categoria</p>
+                                                                        <Input
+                                                                            placeholder="Nome da categoria"
+                                                                            value={novaCategoria}
+                                                                            onChange={(e) => setNovaCategoria(e.target.value)}
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            className="w-full"
+                                                                            disabled={!novaCategoria || criarCategoria.isPending}
+                                                                            onClick={() => criarCategoria.mutate({ nome: novaCategoria })}
+                                                                        >
+                                                                            {criarCategoria.isPending ? (
+                                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                            ) : (
+                                                                                'Criar'
+                                                                            )}
+                                                                        </Button>
+                                                                    </div>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        {/* Descrição */}
                                         <FormField
                                             control={form.control}
-                                            name="valor_total"
+                                            name="descricao"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Valor Total (R$)</FormLabel>
+                                                    <FormLabel>Descrição</FormLabel>
                                                     <FormControl>
-                                                        <Input
-                                                            type="text"
-                                                            inputMode="decimal"
-                                                            placeholder="0,00"
+                                                        <Input placeholder="Ex: Conta de luz, Aluguel..." {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        {/* Observações - MANTIDO NA COLUNA ESQUERDA */}
+                                        <FormField
+                                            control={form.control}
+                                            name="observacoes"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Observações (opcional)</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea
+                                                            placeholder="Informações adicionais..."
+                                                            rows={4}
+                                                            className="resize-none"
                                                             {...field}
                                                         />
                                                     </FormControl>
@@ -767,235 +749,220 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                 </FormItem>
                                             )}
                                         />
-
-                                        {/* Número de Parcelas */}
-                                        <FormField
-                                            control={form.control}
-                                            name="total_parcelas"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Nº de Parcelas</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="number" min="1" max="120" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        {/* Intervalo */}
-                                        <FormField
-                                            control={form.control}
-                                            name="intervalo_dias"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Intervalo (dias)</FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="7">7 dias</SelectItem>
-                                                            <SelectItem value="15">15 dias</SelectItem>
-                                                            <SelectItem value="30">30 dias (mensal)</SelectItem>
-                                                            <SelectItem value="60">60 dias</SelectItem>
-                                                            <SelectItem value="90">90 dias</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
                                     </div>
-                                </div>
-                            )}
 
-                            {/* SEÇÃO: Datas */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
-                                    <Calendar className="h-4 w-4" />
-                                    Datas
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    {/* Data Emissão */}
-                                    <FormField
-                                        control={form.control}
-                                        name="data_emissao"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Data de Emissão</FormLabel>
-                                                <FormControl>
-                                                    <Input type="date" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    {/* Primeiro Vencimento com atalhos */}
+                                    {/* COLUNA DIREITA: Finanças (Valor, Datas, Parcelas) */}
                                     {!isEditing && (
-                                        <FormField
-                                            control={form.control}
-                                            name="primeiro_vencimento"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>1º Vencimento</FormLabel>
-                                                    <div className="space-y-2">
-                                                        <FormControl>
-                                                            <Input type="date" {...field} />
-                                                        </FormControl>
-                                                        {/* Atalhos de data */}
-                                                        <div className="flex gap-1 flex-wrap">
-                                                            {[
-                                                                { label: 'Hoje', days: 0 },
-                                                                { label: '+7d', days: 7 },
-                                                                { label: '+15d', days: 15 },
-                                                                { label: '+30d', days: 30 },
-                                                            ].map((opt) => (
-                                                                <Button
-                                                                    key={opt.label}
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                                                    onClick={() => {
-                                                                        const data = addDays(new Date(), opt.days)
-                                                                        field.onChange(format(data, 'yyyy-MM-dd'))
-                                                                    }}
-                                                                >
-                                                                    {opt.label}
-                                                                </Button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    )}
-                                </div>
-                            </div>
+                                        <div className="flex flex-col h-full space-y-4">
 
-                            {/* SEÇÃO: Tabela de Parcelas Editável */}
-                            {!isEditing && parcelasEditaveis.length > 0 && (
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between border-b pb-2">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                            <ListOrdered className="h-4 w-4" />
-                                            Parcelas ({parcelasEditaveis.length})
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-muted-foreground">
-                                                Total:
-                                            </span>
-                                            <span className={cn(
-                                                "text-sm font-bold",
-                                                Math.abs(somaParcelas - parseFloat(valorTotal?.replace(',', '.') || '0')) < 0.01
-                                                    ? "text-green-600"
-                                                    : "text-orange-500"
-                                            )}>
-                                                {formatCurrency(somaParcelas)}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Tabela Profissional */}
-                                    <div className="border rounded-lg overflow-hidden">
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-muted/50">
-                                                <tr>
-                                                    <th className="px-3 py-2 text-left font-medium text-muted-foreground w-12">#</th>
-                                                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Fornecedor</th>
-                                                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Vencimento</th>
-                                                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Valor (R$)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {parcelasEditaveis.map((p, index) => (
-                                                    <tr key={p.numero} className="hover:bg-muted/30 transition-colors">
-                                                        <td className="px-3 py-2">
-                                                            <span className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                                                                {p.numero}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-3 py-2 text-muted-foreground">
-                                                            {fornecedores?.find(f => f.id === form.watch('fornecedor_id'))?.nome || '-'}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <Input
-                                                                type="date"
-                                                                className="h-8 w-[140px]"
-                                                                value={format(p.data, 'yyyy-MM-dd')}
-                                                                onChange={(e) => {
-                                                                    if (e.target.value) {
-                                                                        atualizarDataParcela(index, new Date(e.target.value + 'T12:00:00'))
-                                                                    }
-                                                                }}
-                                                            />
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <Input
-                                                                type="text"
-                                                                inputMode="decimal"
-                                                                className="h-8 w-[100px] text-right ml-auto"
-                                                                value={p.valor.toFixed(2).replace('.', ',')}
-                                                                onChange={(e) => {
-                                                                    const novoValor = parseFloat(e.target.value.replace(',', '.')) || 0
-                                                                    atualizarValorParcela(index, novoValor)
-                                                                }}
-                                                            />
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                            <tfoot className="bg-muted/30">
-                                                <tr>
-                                                    <td colSpan={3} className="px-3 py-2 text-right font-medium">
-                                                        Total:
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-bold text-primary">
-                                                        {formatCurrency(somaParcelas)}
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-
-                                    {/* Aviso de diferença */}
-                                    {Math.abs(somaParcelas - parseFloat(valorTotal?.replace(',', '.') || '0')) >= 0.01 && (
-                                        <div className="p-2 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded text-xs text-orange-700 dark:text-orange-400 flex items-center gap-2">
-                                            <Calculator className="h-3 w-3" />
-                                            Soma das parcelas ({formatCurrency(somaParcelas)}) difere do valor total informado ({formatCurrency(parseFloat(valorTotal?.replace(',', '.') || '0'))})
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* SEÇÃO: Observações */}
-                            <div className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="observacoes"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Observações (opcional)</FormLabel>
-                                            <FormControl>
-                                                <Textarea
-                                                    placeholder="Informações adicionais sobre a conta..."
-                                                    rows={2}
-                                                    {...field}
+                                            {/* Bloco de VALOR e DATAS - Destaque */}
+                                            <div className="bg-muted/40 p-5 rounded-xl border border-border/50 space-y-5">
+                                                {/* Valor Total com Input Grande */}
+                                                <FormField
+                                                    control={form.control}
+                                                    name="valor_total"
+                                                    render={({ field }) => (
+                                                        <FormItem className="space-y-1">
+                                                            <FormLabel className="text-xs uppercase tracking-wide text-muted-foreground font-bold">Valor Total</FormLabel>
+                                                            <FormControl>
+                                                                <div className="relative group">
+                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-medium group-focus-within:text-primary transition-colors">R$</span>
+                                                                    <Input
+                                                                        type="text"
+                                                                        inputMode="decimal"
+                                                                        placeholder="0,00"
+                                                                        className="pl-10 h-14 text-2xl font-bold bg-background shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
+                                                                        {...field}
+                                                                    />
+                                                                </div>
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
                                                 />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+
+                                                {/* Linha de Datas */}
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="data_emissao"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-xs">Data Emissão</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="date" className="h-9 font-medium" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="primeiro_vencimento"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <div className="flex justify-between items-center">
+                                                                    <FormLabel className="text-xs">1º Vencimento</FormLabel>
+                                                                    {/* Atalhos rápidos de data */}
+                                                                    <Popover>
+                                                                        <PopoverTrigger asChild>
+                                                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-muted-foreground hover:text-primary">
+                                                                                <Calendar className="h-3 w-3" />
+                                                                            </Button>
+                                                                        </PopoverTrigger>
+                                                                        <PopoverContent className="w-auto p-2" align="end">
+                                                                            <div className="grid grid-cols-2 gap-1">
+                                                                                {[
+                                                                                    { label: 'Hoje', days: 0 },
+                                                                                    { label: '+7 dias', days: 7 },
+                                                                                    { label: '+15 dias', days: 15 },
+                                                                                    { label: '+30 dias', days: 30 },
+                                                                                ].map(opt => (
+                                                                                    <Button
+                                                                                        key={opt.label}
+                                                                                        variant="ghost"
+                                                                                        size="sm"
+                                                                                        className="text-xs justify-start"
+                                                                                        onClick={() => {
+                                                                                            form.setValue('primeiro_vencimento', format(addDays(new Date(), opt.days), 'yyyy-MM-dd'))
+                                                                                        }}
+                                                                                    >
+                                                                                        {opt.label}
+                                                                                    </Button>
+                                                                                ))}
+                                                                            </div>
+                                                                        </PopoverContent>
+                                                                    </Popover>
+                                                                </div>
+                                                                <FormControl>
+                                                                    <Input type="date" className="h-9 font-medium" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Bloco de Parcelamento */}
+                                            <div className="space-y-3 pt-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                                                        <ListOrdered className="h-3.5 w-3.5" /> Condições
+                                                    </span>
+                                                    {/* Chips de Parcelas */}
+                                                    <div className="flex bg-muted/50 p-0.5 rounded-md">
+                                                        {[
+                                                            { label: '1x', value: '1' },
+                                                            { label: '2x', value: '2' },
+                                                            { label: '3x', value: '3' },
+                                                            { label: '6x', value: '6' },
+                                                            { label: '12x', value: '12' },
+                                                        ].map((opt) => (
+                                                            <button
+                                                                key={opt.value}
+                                                                type="button"
+                                                                onClick={() => form.setValue('total_parcelas', opt.value)}
+                                                                className={cn(
+                                                                    "px-2.5 py-1 text-[10px] font-medium rounded-sm transition-all",
+                                                                    totalParcelas === opt.value
+                                                                        ? "bg-background text-primary shadow-sm"
+                                                                        : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                                                )}
+                                                            >
+                                                                {opt.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="total_parcelas"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-xs">Qtd. Parcelas</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="number" min="1" max="120" className="h-8" {...field} />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="intervalo_dias"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-xs">Intervalo</FormLabel>
+                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <FormControl>
+                                                                        <SelectTrigger className="h-8">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                    </FormControl>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="7">Semanal (7d)</SelectItem>
+                                                                        <SelectItem value="15">Quinzenal (15d)</SelectItem>
+                                                                        <SelectItem value="30">Mensal (30d)</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Tabela de Parcelas (Renderizado condicionalmente se houver parcelas) */}
+                                            {parcelasEditaveis.length > 0 && (
+                                                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col bg-background">
+                                                    <div className="bg-muted/30 px-3 py-2 border-b flex justify-between items-center">
+                                                        <span className="text-xs font-semibold text-muted-foreground">Parcelas Geradas</span>
+                                                        <span className={cn("text-xs font-bold", Math.abs(somaParcelas - parseFloat(valorTotal?.replace(',', '.') || '0')) < 0.01 ? "text-green-600" : "text-orange-500")}>
+                                                            Total: {formatCurrency(somaParcelas)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="overflow-y-auto max-h-[140px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                                                        <table className="w-full text-xs">
+                                                            <tbody className="divide-y">
+                                                                {parcelasEditaveis.map((p, index) => (
+                                                                    <tr key={p.numero} className="group hover:bg-muted/40 transition-colors">
+                                                                        <td className="px-3 py-2 w-8 text-center text-muted-foreground font-medium">{p.numero}</td>
+                                                                        <td className="px-2 py-1">
+                                                                            <input
+                                                                                type="date"
+                                                                                className="bg-transparent border-none w-full text-muted-foreground focus:text-foreground focus:outline-none p-0 h-auto font-medium"
+                                                                                value={format(p.data, 'yyyy-MM-dd')}
+                                                                                onChange={(e) => {
+                                                                                    if (e.target.value) atualizarDataParcela(index, new Date(e.target.value + 'T12:00:00'))
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                        <td className="px-3 py-1 text-right">
+                                                                            <input
+                                                                                type="text"
+                                                                                className="bg-transparent border-none w-full text-right focus:outline-none p-0 h-auto font-medium"
+                                                                                value={p.valor.toFixed(2).replace('.', ',')}
+                                                                                onChange={(e) => {
+                                                                                    const val = parseFloat(e.target.value.replace(',', '.')) || 0
+                                                                                    atualizarValorParcela(index, val)
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
-                                />
+                                </div>
                             </div>
 
-                            <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+                            <DialogFooter className="flex-col sm:flex-row gap-2 pt-4 mt-6 border-t">
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -1035,10 +1002,12 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                     </Button>
                                 </div>
                             </DialogFooter>
+
                         </form>
                     </Form>
-                )}
-            </DialogContent>
-        </Dialog>
+                )
+                }
+            </DialogContent >
+        </Dialog >
     )
 }
