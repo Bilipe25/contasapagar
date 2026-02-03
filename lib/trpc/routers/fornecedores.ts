@@ -130,6 +130,7 @@ export const fornecedoresRouter = router({
                 valor_final,
                 status,
                 data_vencimento,
+                data_pagamento,
                 contas!inner(
                     fornecedor_id,
                     user_id
@@ -154,6 +155,7 @@ export const fornecedoresRouter = router({
                     aVencer: { quantidade: 0, valor: 0 },
                     vencidas: { quantidade: 0, valor: 0 },
                     quitadas: { quantidade: 0, valor: 0 },
+                    ultimaCompra: null as string | null,
                 }
             }
 
@@ -172,6 +174,12 @@ export const fornecedoresRouter = router({
             if (parcela.status === 'pago') {
                 acc[fornecedorId].quitadas.quantidade += 1
                 acc[fornecedorId].quitadas.valor += valor
+
+                // Atualizar última compra (data do pagamento ou vencimento)
+                const dataPagamento = parcela.data_pagamento || parcela.data_vencimento
+                if (!acc[fornecedorId].ultimaCompra || dataPagamento > acc[fornecedorId].ultimaCompra) {
+                    acc[fornecedorId].ultimaCompra = dataPagamento
+                }
             } else if (parcela.status === 'atrasado' || (parcela.status === 'pendente' && dataVencimento < hoje)) {
                 // Vencida: explicitamente atrasada ou pendente com data passada
                 acc[fornecedorId].vencidas.quantidade += 1
@@ -189,6 +197,7 @@ export const fornecedoresRouter = router({
             aVencer: { quantidade: number; valor: number }
             vencidas: { quantidade: number; valor: number }
             quitadas: { quantidade: number; valor: number }
+            ultimaCompra: string | null
         }>)
 
         return statsByFornecedor

@@ -1,37 +1,39 @@
 'use client'
 
+import { useState } from 'react'
 import { trpc } from '@/lib/trpc/client'
 import {
     Sheet,
     SheetContent,
-    SheetDescription,
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Card, CardContent } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Building2,
     Mail,
     Phone,
     FileText,
     Edit,
-    Receipt,
-    AlertTriangle,
-    CheckCircle2,
-    Clock,
-    ExternalLink,
+    ShoppingCart,
+    DollarSign,
+    Calendar,
     MapPin,
     Hash,
-    ShieldCheck,
+    ExternalLink,
+    TrendingUp,
+    Receipt,
     Copy,
+    CheckCircle2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 interface FornecedorDetailDrawerProps {
     fornecedorId: string | null
@@ -40,66 +42,82 @@ interface FornecedorDetailDrawerProps {
     onEdit?: (id: string) => void
 }
 
-function InfoItem({
+function StatCard({
+    icon: Icon,
+    label,
+    value,
+    iconColor = 'text-muted-foreground'
+}: {
+    icon: React.ElementType
+    label: string
+    value: string | number
+    iconColor?: string
+}) {
+    return (
+        <div className="flex-1 p-3 rounded-lg border bg-card">
+            <p className="text-xs text-muted-foreground mb-1">{label}</p>
+            <div className="flex items-center gap-2">
+                <Icon className={`h-4 w-4 ${iconColor}`} />
+                <span className="font-semibold text-lg">{value}</span>
+            </div>
+        </div>
+    )
+}
+
+function InfoRow({
     icon: Icon,
     label,
     value,
     href,
     copyable = false,
-    colorClass = 'text-muted-foreground'
 }: {
-    icon?: React.ElementType
+    icon: React.ElementType
     label: string
     value?: string | null
     href?: string
     copyable?: boolean
-    colorClass?: string
 }) {
+    const [copied, setCopied] = useState(false)
+
     if (!value) return null
 
     const handleCopy = () => {
         navigator.clipboard.writeText(value)
-        toast.success('Copiado para a área de transferência')
+        setCopied(true)
+        toast.success('Copiado!')
+        setTimeout(() => setCopied(false), 2000)
     }
 
     return (
-        <div className="flex items-start gap-3 py-2">
-            {Icon && <Icon className={`h-4 w-4 mt-0.5 ${colorClass}`} />}
-            <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="flex items-start py-3 border-b last:border-0">
+            <div className="flex items-center gap-2 w-28 shrink-0">
+                <Icon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{label}</span>
+            </div>
+            <div className="flex-1 flex items-center gap-2">
                 {href ? (
                     <a
                         href={href}
-                        className="text-sm font-medium text-primary hover:underline"
+                        className="text-sm text-primary hover:underline"
                     >
                         {value}
                     </a>
+                ) : copyable ? (
+                    <button
+                        onClick={handleCopy}
+                        className="text-sm font-mono px-2 py-0.5 rounded border bg-muted/50 hover:bg-muted transition-colors flex items-center gap-1.5"
+                    >
+                        {value}
+                        {copied ? (
+                            <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        ) : (
+                            <Copy className="h-3 w-3 text-muted-foreground" />
+                        )}
+                    </button>
                 ) : (
-                    <p className="text-sm font-medium truncate">{value}</p>
+                    <span className="text-sm">{value}</span>
                 )}
             </div>
-            {copyable && (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={handleCopy}
-                >
-                    <Copy className="h-3 w-3" />
-                </Button>
-            )}
-        </div>
-    )
-}
-
-function Section({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
-    return (
-        <div>
-            <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
-                <Icon className="h-4 w-4 text-primary" />
-                {title}
-            </h3>
-            {children}
         </div>
     )
 }
@@ -116,7 +134,8 @@ export function FornecedorDetailDrawer({
     const { data: stats, isLoading: loadingStats } = trpc.fornecedores.stats.useQuery()
 
     const fornecedor = fornecedores?.find(f => f.id === fornecedorId)
-    const fornecedorStats = fornecedorId && stats?.[fornecedorId]
+    const rawStats = fornecedorId && stats?.[fornecedorId]
+    const fornecedorStats = rawStats && typeof rawStats === 'object' ? rawStats : null
 
     const isLoading = loadingFornecedor || loadingStats
 
@@ -130,267 +149,254 @@ export function FornecedorDetailDrawer({
         fornecedor.cidade && fornecedor.uf
             ? `${fornecedor.cidade} - ${fornecedor.uf}`
             : fornecedor.cidade || fornecedor.uf,
-        fornecedor.cep,
+        fornecedor.cep ? `CEP: ${fornecedor.cep}` : null,
     ].filter(Boolean).join(', ') : null
+
+    // Calcular última compra (última parcela paga)
+    const ultimaCompra = fornecedorStats?.ultimaCompra
 
     if (!fornecedorId) return null
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-lg overflow-y-auto">
+            <SheetContent className="sm:max-w-md p-0 flex flex-col">
                 {isLoading ? (
-                    <div className="space-y-4">
-                        <Skeleton className="h-8 w-3/4" />
-                        <Skeleton className="h-4 w-1/2" />
-                        <Skeleton className="h-32" />
-                        <Skeleton className="h-32" />
+                    <div className="p-6 space-y-4">
+                        <Skeleton className="h-6 w-48" />
+                        <Skeleton className="h-8 w-64" />
+                        <div className="flex gap-2">
+                            <Skeleton className="h-20 flex-1" />
+                            <Skeleton className="h-20 flex-1" />
+                            <Skeleton className="h-20 flex-1" />
+                        </div>
+                        <Skeleton className="h-40" />
                     </div>
                 ) : fornecedor ? (
                     <>
                         {/* Header */}
-                        <SheetHeader className="pb-4">
-                            <div className="flex items-start gap-3">
-                                <div className="rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 p-3 shadow-sm">
-                                    <Building2 className="h-6 w-6 text-primary" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <SheetTitle className="text-xl truncate">{fornecedor.nome}</SheetTitle>
-                                    {fornecedor.cnpj_cpf && (
-                                        <SheetDescription className="text-sm font-mono">
-                                            {fornecedor.cnpj_cpf}
-                                        </SheetDescription>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Status Badge */}
-                            <div className="flex flex-wrap gap-2 mt-3">
+                        <SheetHeader className="px-6 py-4 border-b">
+                            <div className="flex items-center gap-3">
+                                <SheetTitle className="text-base font-medium">
+                                    Detalhes do Fornecedor
+                                </SheetTitle>
                                 {fornecedor.situacao_cadastral && (
                                     <Badge
                                         variant={fornecedor.situacao_cadastral.toLowerCase() === 'ativa' ? 'default' : 'secondary'}
-                                        className="gap-1"
+                                        className="text-xs"
                                     >
-                                        <ShieldCheck className="h-3 w-3" />
                                         {fornecedor.situacao_cadastral}
                                     </Badge>
-                                )}
-                                {fornecedorStats && fornecedorStats.totalContas > 0 && (
-                                    <>
-                                        {fornecedorStats.vencidas.quantidade > 0 ? (
-                                            <Badge variant="destructive" className="gap-1">
-                                                <AlertTriangle className="h-3 w-3" />
-                                                {fornecedorStats.vencidas.quantidade} vencida{fornecedorStats.vencidas.quantidade > 1 ? 's' : ''}
-                                            </Badge>
-                                        ) : fornecedorStats.aVencer.quantidade === 0 ? (
-                                            <Badge variant="outline" className="gap-1 border-green-600 text-green-600">
-                                                <CheckCircle2 className="h-3 w-3" />
-                                                Quitado
-                                            </Badge>
-                                        ) : (
-                                            <Badge variant="secondary" className="gap-1">
-                                                <Clock className="h-3 w-3" />
-                                                {fornecedorStats.aVencer.quantidade} pendente{fornecedorStats.aVencer.quantidade > 1 ? 's' : ''}
-                                            </Badge>
-                                        )}
-                                    </>
                                 )}
                             </div>
                         </SheetHeader>
 
-                        <div className="space-y-5">
-                            {/* Dados Cadastrais */}
-                            <Section title="Dados Cadastrais" icon={FileText}>
-                                <Card>
-                                    <CardContent className="p-3 space-y-0 divide-y">
-                                        <InfoItem
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto">
+                            {/* Supplier Name */}
+                            <div className="px-6 py-4">
+                                <h2 className="text-xl font-bold tracking-tight">
+                                    {fornecedor.nome}
+                                </h2>
+                            </div>
+
+                            {/* Stats Cards */}
+                            <div className="px-6 pb-4">
+                                <div className="flex gap-2">
+                                    <StatCard
+                                        icon={ShoppingCart}
+                                        label="Compras"
+                                        value={fornecedorStats?.totalContas || 0}
+                                        iconColor="text-blue-500"
+                                    />
+                                    <StatCard
+                                        icon={DollarSign}
+                                        label="Valor Total"
+                                        value={formatCurrency(fornecedorStats?.valorTotal || 0)}
+                                        iconColor="text-green-500"
+                                    />
+                                    <StatCard
+                                        icon={Calendar}
+                                        label="Última Compra"
+                                        value={ultimaCompra
+                                            ? format(parseISO(ultimaCompra), 'dd/MM/yyyy')
+                                            : '-'
+                                        }
+                                        iconColor="text-orange-500"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Tabs */}
+                            <Tabs defaultValue="geral" className="flex-1">
+                                <div className="px-6 border-b">
+                                    <TabsList className="h-10 w-full justify-start gap-4 bg-transparent p-0">
+                                        <TabsTrigger
+                                            value="geral"
+                                            className="px-0 pb-3 pt-1 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none data-[state=active]:shadow-none bg-transparent"
+                                        >
+                                            <FileText className="h-4 w-4 mr-1.5" />
+                                            Visão Geral
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            value="contas"
+                                            className="px-0 pb-3 pt-1 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none data-[state=active]:shadow-none bg-transparent"
+                                        >
+                                            <Receipt className="h-4 w-4 mr-1.5" />
+                                            Contas
+                                            {fornecedorStats && fornecedorStats.totalContas > 0 && (
+                                                <Badge variant="secondary" className="ml-1.5 text-xs h-5 px-1.5">
+                                                    {fornecedorStats.totalContas}
+                                                </Badge>
+                                            )}
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            value="historico"
+                                            className="px-0 pb-3 pt-1 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none data-[state=active]:shadow-none bg-transparent"
+                                        >
+                                            <TrendingUp className="h-4 w-4 mr-1.5" />
+                                            Análises
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </div>
+
+                                {/* Tab: Visão Geral */}
+                                <TabsContent value="geral" className="mt-0 px-6 py-4">
+                                    <div className="space-y-0">
+                                        <InfoRow
                                             icon={Hash}
-                                            label="CNPJ/CPF"
+                                            label="CNPJ"
                                             value={fornecedor.cnpj_cpf}
                                             copyable
                                         />
-                                        <InfoItem
-                                            icon={Hash}
-                                            label="Inscrição Estadual"
-                                            value={fornecedor.inscricao_estadual}
-                                            copyable
-                                        />
-                                    </CardContent>
-                                </Card>
-                            </Section>
-
-                            <Separator />
-
-                            {/* Contato */}
-                            <Section title="Contato" icon={Phone}>
-                                <Card>
-                                    <CardContent className="p-3 space-y-0 divide-y">
-                                        <InfoItem
+                                        {fornecedor.inscricao_estadual && (
+                                            <InfoRow
+                                                icon={Hash}
+                                                label="IE"
+                                                value={fornecedor.inscricao_estadual}
+                                                copyable
+                                            />
+                                        )}
+                                        <InfoRow
                                             icon={Phone}
                                             label="Telefone"
                                             value={fornecedor.telefone}
                                             href={fornecedor.telefone ? `tel:${fornecedor.telefone}` : undefined}
-                                            colorClass="text-green-600"
                                         />
-                                        <InfoItem
+                                        <InfoRow
                                             icon={Mail}
-                                            label="Email"
+                                            label="E-mail"
                                             value={fornecedor.email}
                                             href={fornecedor.email ? `mailto:${fornecedor.email}` : undefined}
-                                            colorClass="text-blue-600"
                                         />
-                                        {!fornecedor.telefone && !fornecedor.email && (
-                                            <p className="text-sm text-muted-foreground py-3 text-center">
-                                                Nenhum contato cadastrado
-                                            </p>
+                                        <InfoRow
+                                            icon={MapPin}
+                                            label="Endereço"
+                                            value={enderecoCompleto}
+                                        />
+                                        {fornecedor.observacoes && (
+                                            <InfoRow
+                                                icon={FileText}
+                                                label="Obs"
+                                                value={fornecedor.observacoes}
+                                            />
                                         )}
-                                    </CardContent>
-                                </Card>
-                            </Section>
-
-                            <Separator />
-
-                            {/* Endereço */}
-                            <Section title="Endereço" icon={MapPin}>
-                                <Card>
-                                    <CardContent className="p-3">
-                                        {enderecoCompleto ? (
-                                            <div className="flex items-start gap-3">
-                                                <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                                                <div className="flex-1">
-                                                    <p className="text-sm">{enderecoCompleto}</p>
-                                                    {fornecedor.cep && (
-                                                        <a
-                                                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1"
-                                                        >
-                                                            Ver no mapa
-                                                            <ExternalLink className="h-3 w-3" />
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground text-center py-2">
-                                                Endereço não cadastrado
-                                            </p>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </Section>
-
-                            <Separator />
-
-                            {/* Estatísticas de Contas */}
-                            {fornecedorStats && fornecedorStats.totalContas > 0 ? (
-                                <Section title="Resumo de Contas" icon={Receipt}>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Card className="bg-muted/50">
-                                            <CardContent className="p-3 text-center">
-                                                <p className="text-xs text-muted-foreground">Total</p>
-                                                <p className="text-2xl font-bold">{fornecedorStats.totalContas}</p>
-                                            </CardContent>
-                                        </Card>
-                                        <Card className="bg-muted/50">
-                                            <CardContent className="p-3 text-center">
-                                                <p className="text-xs text-muted-foreground">Valor Total</p>
-                                                <p className="text-lg font-bold truncate">{formatCurrency(fornecedorStats.valorTotal)}</p>
-                                            </CardContent>
-                                        </Card>
                                     </div>
 
-                                    <div className="mt-3 space-y-2">
-                                        {/* A Vencer */}
-                                        <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-                                            <div className="flex items-center gap-2">
-                                                <Clock className="h-4 w-4 text-blue-600" />
-                                                <div>
-                                                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">A Vencer</p>
-                                                    <p className="text-xs text-blue-600">{fornecedorStats.aVencer.quantidade} conta{fornecedorStats.aVencer.quantidade !== 1 ? 's' : ''}</p>
-                                                </div>
-                                            </div>
-                                            <p className="font-semibold text-blue-600">{formatCurrency(fornecedorStats.aVencer.valor)}</p>
-                                        </div>
+                                    {/* Google Maps Link */}
+                                    {enderecoCompleto && (
+                                        <a
+                                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-3"
+                                        >
+                                            <ExternalLink className="h-3 w-3" />
+                                            Abrir no Google Maps
+                                        </a>
+                                    )}
+                                </TabsContent>
 
-                                        {/* Vencidas */}
-                                        {fornecedorStats.vencidas.quantidade > 0 && (
-                                            <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-950/30">
-                                                <div className="flex items-center gap-2">
-                                                    <AlertTriangle className="h-4 w-4 text-red-600" />
-                                                    <div>
-                                                        <p className="text-sm font-medium text-red-900 dark:text-red-100">Vencidas</p>
-                                                        <p className="text-xs text-red-600">{fornecedorStats.vencidas.quantidade} conta{fornecedorStats.vencidas.quantidade !== 1 ? 's' : ''}</p>
+                                {/* Tab: Contas */}
+                                <TabsContent value="contas" className="mt-0 px-6 py-4">
+                                    {fornecedorStats && fornecedorStats.totalContas > 0 ? (
+                                        <div className="space-y-4">
+                                            {/* Resumo */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+                                                    <p className="text-xs text-blue-600 mb-1">A Vencer</p>
+                                                    <p className="text-sm font-semibold text-blue-700">
+                                                        {fornecedorStats.aVencer.quantidade} conta{fornecedorStats.aVencer.quantidade !== 1 ? 's' : ''}
+                                                    </p>
+                                                    <p className="text-xs text-blue-600">
+                                                        {formatCurrency(fornecedorStats.aVencer.valor)}
+                                                    </p>
+                                                </div>
+                                                {fornecedorStats.vencidas.quantidade > 0 && (
+                                                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30">
+                                                        <p className="text-xs text-red-600 mb-1">Vencidas</p>
+                                                        <p className="text-sm font-semibold text-red-700">
+                                                            {fornecedorStats.vencidas.quantidade} conta{fornecedorStats.vencidas.quantidade !== 1 ? 's' : ''}
+                                                        </p>
+                                                        <p className="text-xs text-red-600">
+                                                            {formatCurrency(fornecedorStats.vencidas.valor)}
+                                                        </p>
                                                     </div>
-                                                </div>
-                                                <p className="font-semibold text-red-600">{formatCurrency(fornecedorStats.vencidas.valor)}</p>
-                                            </div>
-                                        )}
-
-                                        {/* Quitadas */}
-                                        <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
-                                            <div className="flex items-center gap-2">
-                                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                                <div>
-                                                    <p className="text-sm font-medium text-green-900 dark:text-green-100">Quitadas</p>
-                                                    <p className="text-xs text-green-600">{fornecedorStats.quitadas.quantidade} conta{fornecedorStats.quitadas.quantidade !== 1 ? 's' : ''}</p>
+                                                )}
+                                                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
+                                                    <p className="text-xs text-green-600 mb-1">Quitadas</p>
+                                                    <p className="text-sm font-semibold text-green-700">
+                                                        {fornecedorStats.quitadas.quantidade} conta{fornecedorStats.quitadas.quantidade !== 1 ? 's' : ''}
+                                                    </p>
+                                                    <p className="text-xs text-green-600">
+                                                        {formatCurrency(fornecedorStats.quitadas.valor)}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <p className="font-semibold text-green-600">{formatCurrency(fornecedorStats.quitadas.valor)}</p>
-                                        </div>
-                                    </div>
 
-                                    <Button asChild className="w-full mt-4" variant="outline">
-                                        <Link href={`/contas?fornecedor=${fornecedor.id}`}>
-                                            <ExternalLink className="mr-2 h-4 w-4" />
-                                            Ver Todas as Contas
-                                        </Link>
-                                    </Button>
-                                </Section>
-                            ) : (
-                                <Section title="Resumo de Contas" icon={Receipt}>
-                                    <div className="text-center py-6">
-                                        <div className="rounded-full bg-muted p-4 w-fit mx-auto mb-3">
-                                            <Receipt className="h-6 w-6 text-muted-foreground" />
+                                            <Button asChild className="w-full" variant="outline">
+                                                <Link href={`/contas?fornecedor=${fornecedor.id}`}>
+                                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                                    Ver Todas as Contas
+                                                </Link>
+                                            </Button>
                                         </div>
+                                    ) : (
+                                        <div className="text-center py-8">
+                                            <Receipt className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                                            <p className="text-sm text-muted-foreground">
+                                                Nenhuma conta registrada
+                                            </p>
+                                        </div>
+                                    )}
+                                </TabsContent>
+
+                                {/* Tab: Análises */}
+                                <TabsContent value="historico" className="mt-0 px-6 py-4">
+                                    <div className="text-center py-8">
+                                        <TrendingUp className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                                         <p className="text-sm text-muted-foreground">
-                                            Nenhuma conta cadastrada
+                                            Análises em breve
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Histórico de pagamentos e tendências
                                         </p>
                                     </div>
-                                </Section>
-                            )}
+                                </TabsContent>
+                            </Tabs>
+                        </div>
 
-                            {/* Observações */}
-                            {fornecedor.observacoes && (
-                                <>
-                                    <Separator />
-                                    <Section title="Observações" icon={FileText}>
-                                        <Card>
-                                            <CardContent className="p-3">
-                                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                                    {fornecedor.observacoes}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                    </Section>
-                                </>
-                            )}
-
-                            <Separator />
-
-                            {/* Ações */}
-                            <div className="flex gap-2 pb-4">
-                                <Button
-                                    onClick={() => {
-                                        onEdit?.(fornecedor.id)
-                                        onOpenChange(false)
-                                    }}
-                                    className="flex-1"
-                                >
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Editar Fornecedor
-                                </Button>
-                            </div>
+                        {/* Footer Actions */}
+                        <div className="p-4 border-t mt-auto">
+                            <Button
+                                onClick={() => {
+                                    onEdit?.(fornecedor.id)
+                                    onOpenChange(false)
+                                }}
+                                className="w-full"
+                            >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar Fornecedor
+                            </Button>
                         </div>
                     </>
                 ) : (
