@@ -6,22 +6,14 @@ import { trpc } from '@/lib/trpc/client'
 import { useAppStore } from '@/lib/store/use-app-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Filter, X } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { ContasTable } from '@/components/contas/contas-table'
 import { ContasCards } from '@/components/contas/contas-cards'
 import { ContaFormDialog } from '@/components/contas/conta-form-dialog'
 import { ContaDetailDrawer } from '@/components/contas/conta-detail-drawer'
 import { ContasStats } from '@/components/contas/contas-stats'
+import { ContasFilters } from '@/components/contas/contas-filters'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { cn, formatCurrency, parseLocalDate, isVencido } from '@/lib/utils'
 import { format, startOfMonth, endOfMonth, isSameMonth } from 'date-fns'
 
@@ -141,13 +133,14 @@ export default function ContasPage() {
         }, 0),
     } : undefined
 
-    const hasActiveFilters =
+    const hasActiveFilters = Boolean(
         filtroStatus !== 'todos' ||
         filtroFornecedor ||
         filtroTipoDespesa ||
         filtroEmpresa ||
         periodoInicio ||
         periodoFim
+    )
 
     // Filtrar por busca textual e vencidas localmente
     const contasFiltradas = contasData?.filter(conta => {
@@ -262,148 +255,33 @@ export default function ContasPage() {
             <ContasStats stats={stats} isLoading={isLoading} />
 
             {/* Filters */}
-            <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:p-4">
-                {/* Search - Desktop Only */}
-                <div className="relative hidden sm:block">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        placeholder="Buscar por descrição, fornecedor..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9"
-                    />
-                </div>
-
-                {/* Collapsible filters header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Filtros</span>
-                        {hasActiveFilters && (
-                            <Badge variant="secondary" className="text-xs">
-                                {contasFiltradas.length}
-                            </Badge>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {hasActiveFilters && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={limparFiltros}
-                                className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                <X className="mr-1 h-3 w-3" />
-                                Limpar
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Filter Chips - Mobile Scroll / Desktop Grid */}
-                <div className="flex sm:grid sm:grid-cols-4 gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 sm:overflow-visible">
-                    {/* Status Filter */}
-                    <Select
-                        value={filtroVencidas ? 'vencidas' : filtroStatus}
-                        onValueChange={(value: any) => {
-                            if (value === 'vencidas') {
-                                setFiltroStatus('ativa')
-                                setFiltroVencidas(true)
-                            } else {
-                                setFiltroStatus(value)
-                                setFiltroVencidas(false)
-                            }
-                        }}
-                    >
-                        <SelectTrigger className="min-w-[120px] sm:min-w-0 h-9 text-xs sm:text-sm">
-                            <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="todos">Todos os status</SelectItem>
-                            <SelectItem value="ativa">Em Aberto</SelectItem>
-                            <SelectItem value="vencidas">Vencidas</SelectItem>
-                            <SelectItem value="quitada">Quitada</SelectItem>
-                            <SelectItem value="cancelada">Cancelada</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {/* Fornecedor Filter */}
-                    <Select
-                        value={filtroFornecedor || 'all'}
-                        onValueChange={(v) => setFiltroFornecedor(v === 'all' ? null : v)}
-                    >
-                        <SelectTrigger className="min-w-[130px] sm:min-w-0 h-9 text-xs sm:text-sm">
-                            <SelectValue placeholder="Fornecedor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos fornecedores</SelectItem>
-                            {fornecedores?.map((fornecedor) => (
-                                <SelectItem key={fornecedor.id} value={fornecedor.id}>
-                                    {fornecedor.nome}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    {/* Tipo Despesa Filter */}
-                    <Select
-                        value={filtroTipoDespesa || 'all'}
-                        onValueChange={(v) => setFiltroTipoDespesa(v === 'all' ? null : v)}
-                    >
-                        <SelectTrigger className="min-w-[120px] sm:min-w-0 h-9 text-xs sm:text-sm">
-                            <SelectValue placeholder="Categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas categorias</SelectItem>
-                            {tiposDespesa?.map((tipo) => (
-                                <SelectItem key={tipo.id} value={tipo.id}>
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="h-2.5 w-2.5 rounded-full"
-                                            style={{ backgroundColor: tipo.cor || '#6366f1' }}
-                                        />
-                                        {tipo.nome}
-                                    </div>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    {/* Empresa Filter */}
-                    <Select
-                        value={filtroEmpresa || 'all'}
-                        onValueChange={(v) => setFiltroEmpresa(v === 'all' ? null : v)}
-                    >
-                        <SelectTrigger className="min-w-[120px] sm:min-w-0 h-9 text-xs sm:text-sm">
-                            <SelectValue placeholder="Empresa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas empresas</SelectItem>
-                            {empresas?.map((empresa) => (
-                                <SelectItem key={empresa.id} value={empresa.id}>
-                                    {empresa.nome_fantasia || empresa.razao_social}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Seletor de Período com MonthYearPicker */}
-                <div className="flex items-center justify-between border-t pt-3">
-                    <MonthYearPicker
-                        value={mesSelecionadoFiltro}
-                        onChange={setMesSelecionadoFiltro}
-                        onPeriodChange={(start, end) => {
-                            setPeriodoInicio(start)
-                            setPeriodoFim(end)
-                        }}
-                    />
-
-                    {/* Contador de resultados */}
-                    <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{contasFiltradas.length} conta{contasFiltradas.length !== 1 ? 's' : ''}</span>
-                    </div>
-                </div>
+            <div className="rounded-lg border bg-card p-3 sm:p-4">
+                <ContasFilters
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    filtroStatus={filtroStatus}
+                    onStatusChange={setFiltroStatus}
+                    filtroVencidas={filtroVencidas}
+                    onVencidasChange={setFiltroVencidas}
+                    filtroFornecedor={filtroFornecedor}
+                    onFornecedorChange={setFiltroFornecedor}
+                    fornecedores={fornecedores}
+                    filtroTipoDespesa={filtroTipoDespesa}
+                    onTipoDespesaChange={setFiltroTipoDespesa}
+                    tiposDespesa={tiposDespesa}
+                    filtroEmpresa={filtroEmpresa}
+                    onEmpresaChange={setFiltroEmpresa}
+                    empresas={empresas}
+                    mesSelecionado={mesSelecionadoFiltro}
+                    onMesSelecionadoChange={setMesSelecionadoFiltro}
+                    onPeriodChange={(start, end) => {
+                        setPeriodoInicio(start)
+                        setPeriodoFim(end)
+                    }}
+                    onClearFilters={limparFiltros}
+                    totalResults={contasFiltradas.length}
+                    hasActiveFilters={hasActiveFilters}
+                />
             </div>
 
             {/* Content */}
