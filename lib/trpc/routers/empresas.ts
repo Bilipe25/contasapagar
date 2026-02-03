@@ -53,6 +53,7 @@ export const empresasRouter = router({
                 telefone: z.string().optional(),
                 email: z.string().email().optional().or(z.literal('')),
                 observacoes: z.string().optional(),
+                banco_padrao_id: z.string().uuid().optional().nullable(),
             })
         )
         .mutation(async ({ ctx, input }) => {

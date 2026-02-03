@@ -73,6 +73,7 @@ const contaSchema = z.object({
     total_parcelas: z.string().min(1, 'Número de parcelas é obrigatório'),
     intervalo_dias: z.string(),
     observacoes: z.string().optional(),
+    banco_id: z.string().optional().nullable(),
 })
 
 type ContaFormValues = z.infer<typeof contaSchema>
@@ -122,6 +123,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
             total_parcelas: '1',
             intervalo_dias: '30',
             observacoes: '',
+            banco_id: '',
         },
     })
 
@@ -129,6 +131,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
     const { data: fornecedores } = trpc.fornecedores.list.useQuery()
     const { data: tiposDespesa } = trpc.tiposDespesa.list.useQuery()
     const { data: empresas } = trpc.empresas.list.useQuery()
+    const { data: bancos } = trpc.bancos.list.useQuery()
 
     // Fetch conta if editing
     const { data: conta, isLoading: isLoadingConta } = trpc.contas.getById.useQuery(contaId!, {
@@ -193,9 +196,21 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 total_parcelas: conta.total_parcelas?.toString() || '1',
                 intervalo_dias: '30',
                 observacoes: conta.observacoes || '',
+                banco_id: conta.banco_id || '',
             })
         }
     }, [conta, form])
+
+    // Auto-select bank when company changes
+    const selectedEmpresaId = form.watch('empresa_id')
+    useEffect(() => {
+        if (!selectedEmpresaId || isEditing || !empresas) return
+
+        const empresa = empresas.find(e => e.id === selectedEmpresaId)
+        if (empresa?.banco_padrao_id) {
+            form.setValue('banco_id', empresa.banco_padrao_id)
+        }
+    }, [selectedEmpresaId, empresas, isEditing, form])
 
     // Watch values for preview
     const valorTotal = form.watch('valor_total')
@@ -307,6 +322,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 empresa_id: data.empresa_id,
                 descricao: data.descricao,
                 observacoes: data.observacoes,
+                banco_id: data.banco_id || null,
             })
         } else {
             // Enviar parcelas personalizadas
@@ -328,6 +344,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 intervalo_dias: parseInt(data.intervalo_dias),
                 observacoes: data.observacoes,
                 parcelas: parcelasParaEnviar, // Array com valores e datas personalizadas
+                banco_id: data.banco_id || null,
             })
         }
     }
@@ -715,6 +732,36 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                 )}
                                             />
                                         </div>
+
+                                        {/* Banco */}
+                                        <FormField
+                                            control={form.control}
+                                            name="banco_id"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Banco (Opcional)</FormLabel>
+                                                    <Select
+                                                        onValueChange={(value) => field.onChange(value === 'none' ? null : value)}
+                                                        value={field.value || 'none'}
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecione um banco" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Nenhum</SelectItem>
+                                                            {bancos?.map((banco) => (
+                                                                <SelectItem key={banco.id} value={banco.id}>
+                                                                    {banco.codigo ? `${banco.nome} (${banco.codigo})` : banco.nome}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
                                         {/* Descrição */}
                                         <FormField

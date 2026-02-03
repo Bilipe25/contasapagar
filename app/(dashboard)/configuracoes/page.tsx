@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { trpc } from '@/lib/trpc/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Tags, Trash2, Edit, Search, Building2 } from 'lucide-react'
+import { Plus, Tags, Trash2, Edit, Search, Building2, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { TipoDespesaDialog } from '@/components/configuracoes/tipo-despesa-dialog'
 import { EmpresaDialog } from '@/components/configuracoes/empresa-dialog'
+import { BancoDialog } from '@/components/configuracoes/banco-dialog'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,13 +34,19 @@ export default function ConfiguracoesPage() {
     const [editingEmpresa, setEditingEmpresa] = useState<string | null>(null)
     const [searchEmpresa, setSearchEmpresa] = useState('')
 
+    // Estado para Bancos
+    const [bancoDialogOpen, setBancoDialogOpen] = useState(false)
+    const [editingBanco, setEditingBanco] = useState<string | null>(null)
+    const [searchBanco, setSearchBanco] = useState('')
+
     // Estado para confirmação de exclusão
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-    const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string; tipo: 'categoria' | 'empresa' } | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string; tipo: 'categoria' | 'empresa' | 'banco' } | null>(null)
 
     const utils = trpc.useUtils()
     const { data: tiposDespesa, isLoading: loadingCategorias } = trpc.tiposDespesa.list.useQuery()
     const { data: empresas, isLoading: loadingEmpresas } = trpc.empresas.list.useQuery()
+    const { data: bancos, isLoading: loadingBancos } = trpc.bancos.list.useQuery()
 
     // Mutations
     const deleteTipoDespesa = trpc.tiposDespesa.delete.useMutation({
@@ -62,18 +69,30 @@ export default function ConfiguracoesPage() {
         },
     })
 
+    const deleteBanco = trpc.bancos.delete.useMutation({
+        onSuccess: () => {
+            toast.success('Banco excluído!')
+            utils.bancos.list.invalidate()
+        },
+        onError: (error) => {
+            toast.error('Erro ao excluir', { description: error.message })
+        },
+    })
+
     const handleDelete = () => {
         if (!deleteTarget) return
         if (deleteTarget.tipo === 'categoria') {
             deleteTipoDespesa.mutate(deleteTarget.id)
-        } else {
+        } else if (deleteTarget.tipo === 'empresa') {
             deleteEmpresa.mutate(deleteTarget.id)
+        } else {
+            deleteBanco.mutate(deleteTarget.id)
         }
         setDeleteConfirmOpen(false)
         setDeleteTarget(null)
     }
 
-    const confirmDelete = (id: string, nome: string, tipo: 'categoria' | 'empresa') => {
+    const confirmDelete = (id: string, nome: string, tipo: 'categoria' | 'empresa' | 'banco') => {
         setDeleteTarget({ id, nome, tipo })
         setDeleteConfirmOpen(true)
     }
@@ -86,6 +105,11 @@ export default function ConfiguracoesPage() {
         e.razao_social.toLowerCase().includes(searchEmpresa.toLowerCase()) ||
         e.cnpj?.includes(searchEmpresa) ||
         e.nome_fantasia?.toLowerCase().includes(searchEmpresa.toLowerCase())
+    ) || []
+
+    const filteredBancos = bancos?.filter(b =>
+        b.nome.toLowerCase().includes(searchBanco.toLowerCase()) ||
+        b.codigo?.includes(searchBanco)
     ) || []
 
     return (
@@ -183,6 +207,102 @@ export default function ConfiguracoesPage() {
                                             size="icon"
                                             className="h-8 w-8 text-red-600 hover:text-red-700"
                                             onClick={() => confirmDelete(empresa.id, empresa.razao_social, 'empresa')}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Bancos */}
+            <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 pb-3 sm:pb-4 px-3 sm:px-6 pt-3 sm:pt-6">
+                    <div className="min-w-0">
+                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                            <span className="truncate">Bancos</span>
+                            {bancos && <Badge variant="secondary" className="text-xs">{bancos.length}</Badge>}
+                        </CardTitle>
+                        <CardDescription className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
+                            Cadastre bancos para suas contas e empresas
+                        </CardDescription>
+                    </div>
+                    <Button
+                        onClick={() => {
+                            setEditingBanco(null)
+                            setBancoDialogOpen(true)
+                        }}
+                        size="sm"
+                        className="w-full sm:w-auto"
+                    >
+                        <Plus className="mr-1.5 h-4 w-4" />
+                        Novo Banco
+                    </Button>
+                </CardHeader>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                    {/* Search */}
+                    <div className="relative mb-3 sm:mb-4">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar por nome ou código..."
+                            value={searchBanco}
+                            onChange={(e) => setSearchBanco(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
+
+                    {/* List */}
+                    {loadingBancos ? (
+                        <div className="space-y-2">
+                            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 sm:h-16" />)}
+                        </div>
+                    ) : filteredBancos.length === 0 ? (
+                        <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
+                            {searchBanco ? 'Nenhum banco encontrado' : 'Nenhum banco cadastrado'}
+                        </div>
+                    ) : (
+                        <div className="grid gap-2 md:grid-cols-2">
+                            {filteredBancos.map((banco) => (
+                                <div
+                                    key={banco.id}
+                                    className="flex items-center justify-between rounded-lg border p-2.5 sm:p-3 hover:bg-muted/50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
+                                            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-medium text-sm sm:text-base truncate">
+                                                {banco.nome}
+                                            </p>
+                                            {banco.codigo && (
+                                                <p className="text-xs text-muted-foreground truncate">
+                                                    Cód: {banco.codigo}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => {
+                                                setEditingBanco(banco.id)
+                                                setBancoDialogOpen(true)
+                                            }}
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-red-600 hover:text-red-700"
+                                            onClick={() => confirmDelete(banco.id, banco.nome, 'banco')}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -300,13 +420,19 @@ export default function ConfiguracoesPage() {
                 empresaId={editingEmpresa}
             />
 
+            <BancoDialog
+                open={bancoDialogOpen}
+                onOpenChange={setBancoDialogOpen}
+                bancoId={editingBanco}
+            />
+
             {/* Delete Confirmation */}
             <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tem certeza que deseja excluir {deleteTarget?.tipo === 'empresa' ? 'a empresa' : 'a categoria'} "{deleteTarget?.nome}"?
+                            Tem certeza que deseja excluir o item "{deleteTarget?.nome}"?
                             Esta ação não pode ser desfeita.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

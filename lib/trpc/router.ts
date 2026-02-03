@@ -5,6 +5,7 @@ import { fornecedoresRouter } from './routers/fornecedores'
 import { tiposDespesaRouter } from './routers/tipos-despesa'
 import { parcelasRouter } from './routers/parcelas'
 import { empresasRouter } from './routers/empresas'
+import { bancosRouter } from './routers/bancos'
 
 export const appRouter = router({
     dashboard: dashboardRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
     tiposDespesa: tiposDespesaRouter,
     parcelas: parcelasRouter,
     empresas: empresasRouter,
+    bancos: bancosRouter,
 })
 
 export type AppRouter = typeof appRouter

@@ -161,6 +161,7 @@ export const contasRouter = router({
                     valor: z.number(),
                     data_vencimento: z.string(),
                 })).optional(),
+                banco_id: z.string().uuid().optional().nullable(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -183,6 +184,7 @@ export const contasRouter = router({
                     valor_total: valorTotal,
                     observacoes: input.observacoes,
                     status: 'ativa',
+                    banco_id: input.banco_id,
                 })
                 .select()
                 .single()
@@ -316,6 +318,7 @@ export const contasRouter = router({
                 empresa_id: z.string().optional().nullable(),
                 observacoes: z.string().optional().nullable(),
                 status: z.enum(['ativa', 'quitada', 'cancelada']).optional(),
+                banco_id: z.string().uuid().optional().nullable(),
             })
         )
         .mutation(async ({ ctx, input }) => {

@@ -26,6 +26,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Loader2, Building2 } from 'lucide-react'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 
 // Função para formatar CNPJ
 function formatCNPJ(value: string): string {
@@ -55,6 +62,7 @@ const empresaSchema = z.object({
     telefone: z.string().optional(),
     email: z.string().email('Email inválido').optional().or(z.literal('')),
     observacoes: z.string().optional(),
+    banco_padrao_id: z.string().uuid().optional().nullable(),
 })
 
 type EmpresaFormValues = z.infer<typeof empresaSchema>
@@ -80,8 +88,11 @@ export function EmpresaDialog({ open, onOpenChange, empresaId }: EmpresaDialogPr
             telefone: '',
             email: '',
             observacoes: '',
+            banco_padrao_id: null,
         },
     })
+
+    const { data: bancos } = trpc.bancos.list.useQuery()
 
     // Fetch empresa if editing
     const { data: empresa, isLoading: isLoadingEmpresa } = trpc.empresas.getById.useQuery(empresaId!, {
@@ -100,6 +111,7 @@ export function EmpresaDialog({ open, onOpenChange, empresaId }: EmpresaDialogPr
                 telefone: empresa.telefone || '',
                 email: empresa.email || '',
                 observacoes: empresa.observacoes || '',
+                banco_padrao_id: empresa.banco_padrao_id || null,
             })
         } else if (!isEditing) {
             form.reset({
@@ -111,6 +123,7 @@ export function EmpresaDialog({ open, onOpenChange, empresaId }: EmpresaDialogPr
                 telefone: '',
                 email: '',
                 observacoes: '',
+                banco_padrao_id: null,
             })
         }
     }, [empresa, isEditing, form])
