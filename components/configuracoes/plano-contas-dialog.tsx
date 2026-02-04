@@ -399,7 +399,6 @@ export function PlanoContasDialog({ open, onOpenChange, contaId }: PlanoContasDi
                                         <Select
                                             onValueChange={(val) => field.onChange(parseInt(val))}
                                             value={field.value?.toString()}
-                                            disabled={!!contaSuperiorId} // Travar nível se tiver pai (opcional, mas seguro)
                                         >
                                             <FormControl>
                                                 <SelectTrigger>
