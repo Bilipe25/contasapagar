@@ -34,12 +34,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { SupplierAccountsList } from './supplier-accounts-list'
 
 interface FornecedorDetailDrawerProps {
     fornecedorId: string | null
     open: boolean
     onOpenChange: (open: boolean) => void
     onEdit?: (id: string) => void
+    onViewConta?: (contaId: string) => void
 }
 
 function StatCard({
@@ -127,6 +129,7 @@ export function FornecedorDetailDrawer({
     open,
     onOpenChange,
     onEdit,
+    onViewConta,
 }: FornecedorDetailDrawerProps) {
     const { data: fornecedores, isLoading: loadingFornecedor } = trpc.fornecedores.list.useQuery(undefined, {
         enabled: !!fornecedorId,
@@ -318,56 +321,10 @@ export function FornecedorDetailDrawer({
 
                                 {/* Tab: Contas */}
                                 <TabsContent value="contas" className="mt-0 px-6 py-4">
-                                    {fornecedorStats && fornecedorStats.totalContas > 0 ? (
-                                        <div className="space-y-4">
-                                            {/* Resumo */}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-                                                    <p className="text-xs text-blue-600 mb-1">A Vencer</p>
-                                                    <p className="text-sm font-semibold text-blue-700">
-                                                        {fornecedorStats.aVencer.quantidade} conta{fornecedorStats.aVencer.quantidade !== 1 ? 's' : ''}
-                                                    </p>
-                                                    <p className="text-xs text-blue-600">
-                                                        {formatCurrency(fornecedorStats.aVencer.valor)}
-                                                    </p>
-                                                </div>
-                                                {fornecedorStats.vencidas.quantidade > 0 && (
-                                                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30">
-                                                        <p className="text-xs text-red-600 mb-1">Vencidas</p>
-                                                        <p className="text-sm font-semibold text-red-700">
-                                                            {fornecedorStats.vencidas.quantidade} conta{fornecedorStats.vencidas.quantidade !== 1 ? 's' : ''}
-                                                        </p>
-                                                        <p className="text-xs text-red-600">
-                                                            {formatCurrency(fornecedorStats.vencidas.valor)}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
-                                                    <p className="text-xs text-green-600 mb-1">Quitadas</p>
-                                                    <p className="text-sm font-semibold text-green-700">
-                                                        {fornecedorStats.quitadas.quantidade} conta{fornecedorStats.quitadas.quantidade !== 1 ? 's' : ''}
-                                                    </p>
-                                                    <p className="text-xs text-green-600">
-                                                        {formatCurrency(fornecedorStats.quitadas.valor)}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <Button asChild className="w-full" variant="outline">
-                                                <Link href={`/contas?fornecedor=${fornecedor.id}`}>
-                                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                                    Ver Todas as Contas
-                                                </Link>
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-8">
-                                            <Receipt className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                                            <p className="text-sm text-muted-foreground">
-                                                Nenhuma conta registrada
-                                            </p>
-                                        </div>
-                                    )}
+                                    <SupplierAccountsList
+                                        fornecedorId={fornecedorId}
+                                        onViewConta={onViewConta}
+                                    />
                                 </TabsContent>
 
                                 {/* Tab: Análises */}

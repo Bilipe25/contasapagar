@@ -40,6 +40,7 @@ import {
 import { toast } from 'sonner'
 import { FornecedorDialog } from '@/components/configuracoes/fornecedor-dialog'
 import { FornecedorDetailDrawer } from '@/components/fornecedores/fornecedor-detail-drawer'
+import { ContaDetailDrawer } from '@/components/contas/conta-detail-drawer'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -71,6 +72,8 @@ export default function FornecedoresPage() {
     const [filtroStatus, setFiltroStatus] = useState<'todos' | 'com_vencidas' | 'todas_quitadas' | 'com_pendentes'>('todos')
     const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
     const [viewingFornecedorId, setViewingFornecedorId] = useState<string | null>(null)
+    const [contaDetailOpen, setContaDetailOpen] = useState(false)
+    const [viewingContaId, setViewingContaId] = useState<string | null>(null)
 
     const utils = trpc.useUtils()
     const { data: fornecedores, isLoading } = trpc.fornecedores.list.useQuery()
@@ -652,6 +655,18 @@ export default function FornecedoresPage() {
                     setEditingId(id)
                     setDialogOpen(true)
                 }}
+                onViewConta={(contaId) => {
+                    setViewingContaId(contaId)
+                    setContaDetailOpen(true)
+                }}
+            />
+
+            {/* Conta Detail Drawer */}
+            <ContaDetailDrawer
+                contaId={viewingContaId}
+                open={contaDetailOpen}
+                onOpenChange={setContaDetailOpen}
+                onEdit={() => { }} // Not implemented here yet
             />
 
             {/* Delete Confirmation */}
