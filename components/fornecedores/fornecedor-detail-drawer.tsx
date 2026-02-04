@@ -135,7 +135,7 @@ export function FornecedorDetailDrawer({
     const { data: fornecedores, isLoading: loadingFornecedor } = trpc.fornecedores.list.useQuery(undefined, {
         enabled: !!fornecedorId,
     })
-    const { data: stats, isLoading: loadingStats } = trpc.fornecedores.stats.useQuery(fornecedorId!, {
+    const { data: stats, isLoading: loadingStats } = trpc.fornecedores.stats.useQuery(fornecedorId ?? undefined, {
         enabled: !!fornecedorId,
         retry: false
     })
