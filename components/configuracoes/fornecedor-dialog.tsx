@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { trpc } from '@/lib/trpc/client'
-import { consultarCNPJ, formatarCNPJ, formatarCEP, formatarTelefone, limparCNPJ } from '@/lib/api/consulta-cnpj'
+import { formatarCNPJ, formatarCEP, formatarTelefone, limparCNPJ } from '@/lib/api/consulta-cnpj'
 import {
     Dialog,
     DialogContent,
@@ -58,7 +58,6 @@ interface FornecedorDialogProps {
 export function FornecedorDialog({ open, onOpenChange, fornecedorId }: FornecedorDialogProps) {
     const utils = trpc.useUtils()
     const isEditing = !!fornecedorId
-    const [isConsultingCNPJ, setIsConsultingCNPJ] = useState(false)
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -149,20 +148,11 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
         },
     })
 
-    const handleConsultarCNPJ = async () => {
-        const cnpj = form.getValues('cnpj_cpf')
-        if (!cnpj || limparCNPJ(cnpj).length !== 14) {
-            toast.error('Digite um CNPJ válido com 14 dígitos')
-            return
-        }
-
-        setIsConsultingCNPJ(true)
-        try {
-            const dados = await consultarCNPJ(cnpj)
-
+    const consultarCNPJMutation = trpc.fornecedores.consultarCNPJ.useMutation({
+        onSuccess: (dados) => {
             // Preencher os campos com os dados retornados
             form.setValue('nome', dados.razao_social)
-            form.setValue('cnpj_cpf', dados.cnpj)
+            // form.setValue('cnpj_cpf', dados.cnpj) // Normalmente mantemos o que o usuário digitou ou formatamos
             form.setValue('logradouro', dados.logradouro)
             form.setValue('numero', dados.numero)
             form.setValue('complemento', dados.complemento)
@@ -187,13 +177,22 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
             toast.success('Dados do CNPJ carregados!', {
                 description: dados.nome_fantasia || dados.razao_social
             })
-        } catch (error) {
+        },
+        onError: (error) => {
             toast.error('Erro ao consultar CNPJ', {
-                description: error instanceof Error ? error.message : 'Tente novamente'
+                description: error.message
             })
-        } finally {
-            setIsConsultingCNPJ(false)
         }
+    })
+
+    const handleConsultarCNPJ = async () => {
+        const cnpj = form.getValues('cnpj_cpf')
+        if (!cnpj || limparCNPJ(cnpj).length !== 14) {
+            toast.error('Digite um CNPJ válido com 14 dígitos')
+            return
+        }
+
+        consultarCNPJMutation.mutate(cnpj)
     }
 
     // Formatar CNPJ enquanto digita
@@ -277,10 +276,10 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                                         type="button"
                                         variant="secondary"
                                         onClick={handleConsultarCNPJ}
-                                        disabled={isConsultingCNPJ}
+                                        disabled={consultarCNPJMutation.isPending}
                                         className="gap-2"
                                     >
-                                        {isConsultingCNPJ ? (
+                                        {consultarCNPJMutation.isPending ? (
                                             <Loader2 className="h-4 w-4 animate-spin" />
                                         ) : (
                                             <Search className="h-4 w-4" />

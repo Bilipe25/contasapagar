@@ -2,6 +2,69 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '../init'
 
 export const fornecedoresRouter = router({
+    // Consultar CNPJ (Backend Proxy que consulta ReceitaWS e fallback para BrasilAPI)
+    consultarCNPJ: protectedProcedure
+        .input(z.string().transform(v => v.replace(/\D/g, '')))
+        .mutation(async ({ input }) => {
+            if (input.length !== 14) {
+                throw new Error('CNPJ deve ter 14 dígitos')
+            }
+
+            // Tentar ReceitaWS (tem email)
+            try {
+                const response = await fetch(`https://www.receitaws.com.br/v1/cnpj/${input}`)
+                if (response.ok) {
+                    const data = await response.json()
+                    if (data.status !== 'ERROR') {
+                        return {
+                            razao_social: data.nome,
+                            nome_fantasia: data.fantasia,
+                            cnpj: input.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+                            logradouro: data.logradouro,
+                            numero: data.numero,
+                            complemento: data.complemento,
+                            bairro: data.bairro,
+                            municipio: data.municipio,
+                            uf: data.uf,
+                            cep: data.cep.replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2'),
+                            telefone1: data.telefone,
+                            email: data.email,
+                            situacao_cadastral: data.situacao,
+                            inscricao_estadual: null // ReceitaWS não retorna IE
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao consultar ReceitaWS:', error)
+            }
+
+            // Fallback BrasilAPI (mais rápido, sem rate limit, mas as vezes sem email)
+            const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${input}`)
+            if (!response.ok) {
+                throw new Error('Falha ao consultar CNPJ em todas as fontes')
+            }
+
+            const data = await response.json()
+            return {
+                razao_social: data.razao_social,
+                nome_fantasia: data.nome_fantasia,
+                cnpj: data.cnpj, // Já vem formatado da BrasilAPI? Não, vem limpo geralmente ou formatado?
+                // BrasilAPI v1 retorna formatted se não me engano? Não, retorna limpo ou mixed.
+                // Mas vamos formatar por segurança
+                logradouro: data.logradouro,
+                numero: data.numero,
+                complemento: data.complemento,
+                bairro: data.bairro,
+                municipio: data.municipio,
+                uf: data.uf,
+                cep: data.cep, // Formatamos no front se precisar
+                telefone1: data.ddd_telefone_1 ? `(${data.ddd_telefone_1}) ${data.telefone1 || ''}` : null,
+                email: data.email,
+                situacao_cadastral: data.descricao_situacao_cadastral,
+                inscricao_estadual: null
+            }
+        }),
+
     // Listar todos os fornecedores do usuário
     list: protectedProcedure.query(async ({ ctx }) => {
         const { data, error } = await ctx.supabase
