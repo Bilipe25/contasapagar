@@ -138,21 +138,51 @@ export function PlanoContasDialog({ open, onOpenChange, contaId }: PlanoContasDi
 
     // Efeito para sugerir nível e tipo baseado na conta superior
     useEffect(() => {
-        if (contaSuperiorId && contas) {
-            const pai = contas.find((c: PlanoConta) => c.id === contaSuperiorId)
-            if (pai) {
-                form.setValue('nivel', pai.nivel + 1)
-                form.setValue('tipo', pai.tipo)
+        // Se estiver editando e já carregou os dados iniciais, não queremos sobrescrever o código
+        // a menos que o usuário mude o pai.
+        // Mas a lógica simplificada abaixo roda sempre que contaSuperiorId muda.
 
-                // Sugestão basica de código (ex: pai 1.1 -> filho 1.1.?)
-                // Isso é complexo fazer perfeito no front sem saber os outros filhos,
-                // mas ajuda o usuário.
+        async function fetchSuggestion() {
+            if (contaSuperiorId && contas) {
+                const pai = contas.find((c: PlanoConta) => c.id === contaSuperiorId)
+                if (pai) {
+                    form.setValue('nivel', pai.nivel >= 7 ? 7 : pai.nivel + 1)
+                    form.setValue('tipo', pai.tipo)
+
+                    // Buscar sugestão de código inteligentemente
+                    // Só sugerir se o campo código estiver vazio ou se o usuário estiver criando uma nova conta (não edição com código já setado)
+                    // Ou se mudou o pai explicitamente.
+                    const currentCode = form.getValues('codigo')
+                    if (!contaId || !currentCode) {
+                        try {
+                            const nextCode = await utils.planoContas.getNextCode.fetch({ parentId: contaSuperiorId })
+                            if (nextCode) {
+                                form.setValue('codigo', nextCode)
+                            }
+                        } catch (err) {
+                            console.error('Failed to fetch next code', err)
+                        }
+                    }
+                }
+            } else if (!contaId && contaSuperiorId === null) {
+                // Se removeu pai (Raiz), resetar nível e tentar sugerir próximo root code
+                form.setValue('nivel', 1)
+                const currentCode = form.getValues('codigo')
+                if (!currentCode) {
+                    try {
+                        const nextCode = await utils.planoContas.getNextCode.fetch({ parentId: null })
+                        if (nextCode) {
+                            form.setValue('codigo', nextCode)
+                        }
+                    } catch (err) {
+                        console.error('Failed to fetch next root code', err)
+                    }
+                }
             }
-        } else if (!contaId) {
-            // Se removeu pai, volta pra nível 1
-            form.setValue('nivel', 1)
         }
-    }, [contaSuperiorId, contas, form, contaId])
+
+        fetchSuggestion()
+    }, [contaSuperiorId, contas, form, contaId, utils])
 
     const createMutation = trpc.planoContas.create.useMutation({
         onSuccess: () => {

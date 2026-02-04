@@ -147,12 +147,77 @@ export const planoContasRouter = router({
             return { success: true }
         }),
 
-    // Helper para sugerir próximo código (opcional, pode ser complexo)
-    getSuggestions: protectedProcedure
-        .input(z.object({ parentId: z.string().uuid().optional() }))
+    // Sugerir próximo código disponível
+    getNextCode: protectedProcedure
+        .input(z.object({ parentId: z.string().uuid().optional().nullable() }))
         .query(async ({ ctx, input }) => {
-            // Logica simplificada: retornar todos para o front calcular
-            // ou implementar lógica robusta de sugestão aqui
-            return []
+            const userId = ctx.user.id
+
+            if (!input.parentId) {
+                // Nível Raiz (1)
+                // Buscar maior código de nível 1
+                const { data: roots } = await ctx.supabase
+                    .from('plano_contas')
+                    .select('codigo')
+                    .is('conta_superior_id', null)
+                    .eq('user_id', userId)
+
+                if (!roots || roots.length === 0) return '1'
+
+                // Tentar converter para número e achar o max
+                const codes = roots.map(r => parseInt(r.codigo)).filter(n => !isNaN(n))
+                if (codes.length === 0) return '1'
+
+                const max = Math.max(...codes)
+                return (max + 1).toString()
+            } else {
+                // Subnível
+                // 1. Pegar código do pai
+                const { data: parent } = await ctx.supabase
+                    .from('plano_contas')
+                    .select('codigo, nivel')
+                    .eq('id', input.parentId)
+                    .eq('user_id', userId)
+                    .single()
+
+                if (!parent) return '' // Pai não encontrado?
+
+                // 2. Pegar filhos do pai
+                const { data: children } = await ctx.supabase
+                    .from('plano_contas')
+                    .select('codigo')
+                    .eq('conta_superior_id', input.parentId)
+                    .eq('user_id', userId)
+
+                const parentCode = parent.codigo
+                const parentLevel = parent.nivel
+
+                // Determinar sufixo:
+                // Se pai é "1", filhos padrão "1.01", "1.02" (2 dígitos)
+                // Se pai é "1.01", filhos padrão "1.01.001" (3 dígitos)
+                // Se pai é "1.01.001", filhos padrão "1.01.001.001" (3 dígitos)
+
+                const padding = parentLevel === 1 ? 2 : 3
+
+                if (!children || children.length === 0) {
+                    // Primeiro filho
+                    return `${parentCode}.${'1'.padStart(padding, '0')}`
+                }
+
+                // Achar maior sufixo
+                let maxSuffix = 0
+                children.forEach(child => {
+                    // Esperado: parentCode + "." + sufixo
+                    if (child.codigo.startsWith(parentCode + '.')) {
+                        const suffixStr = child.codigo.substring(parentCode.length + 1)
+                        if (/^\d+$/.test(suffixStr)) {
+                            const val = parseInt(suffixStr)
+                            if (val > maxSuffix) maxSuffix = val
+                        }
+                    }
+                })
+
+                return `${parentCode}.${(maxSuffix + 1).toString().padStart(padding, '0')}`
+            }
         })
 })
