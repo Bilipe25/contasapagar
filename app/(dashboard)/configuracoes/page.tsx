@@ -1,452 +1,80 @@
 'use client'
 
-import { useState } from 'react'
-import { trpc } from '@/lib/trpc/client'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Plus, Tags, Trash2, Edit, Search, Building2, Landmark } from 'lucide-react'
-import { toast } from 'sonner'
-import { TipoDespesaDialog } from '@/components/configuracoes/tipo-despesa-dialog'
-import { EmpresaDialog } from '@/components/configuracoes/empresa-dialog'
-import { BancoDialog } from '@/components/configuracoes/banco-dialog'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { Building2, Landmark, Tags } from 'lucide-react'
+import { CategoriasTab } from '@/components/configuracoes/tabs/categorias-tab'
+import { EmpresasTab } from '@/components/configuracoes/tabs/empresas-tab'
+import { BancosTab } from '@/components/configuracoes/tabs/bancos-tab'
 
 export default function ConfiguracoesPage() {
-    // Estado para Categorias
-    const [tipoDespesaDialogOpen, setTipoDespesaDialogOpen] = useState(false)
-    const [editingTipoDespesa, setEditingTipoDespesa] = useState<string | null>(null)
-    const [searchCategoria, setSearchCategoria] = useState('')
-
-    // Estado para Empresas
-    const [empresaDialogOpen, setEmpresaDialogOpen] = useState(false)
-    const [editingEmpresa, setEditingEmpresa] = useState<string | null>(null)
-    const [searchEmpresa, setSearchEmpresa] = useState('')
-
-    // Estado para Bancos
-    const [bancoDialogOpen, setBancoDialogOpen] = useState(false)
-    const [editingBanco, setEditingBanco] = useState<string | null>(null)
-    const [searchBanco, setSearchBanco] = useState('')
-
-    // Estado para confirmação de exclusão
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-    const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string; tipo: 'categoria' | 'empresa' | 'banco' } | null>(null)
-
-    const utils = trpc.useUtils()
-    const { data: tiposDespesa, isLoading: loadingCategorias } = trpc.tiposDespesa.list.useQuery()
-    const { data: empresas, isLoading: loadingEmpresas } = trpc.empresas.list.useQuery()
-    const { data: bancos, isLoading: loadingBancos } = trpc.bancos.list.useQuery()
-
-    // Mutations
-    const deleteTipoDespesa = trpc.tiposDespesa.delete.useMutation({
-        onSuccess: () => {
-            toast.success('Categoria excluída!')
-            utils.tiposDespesa.list.invalidate()
-        },
-        onError: (error) => {
-            toast.error('Erro ao excluir', { description: error.message })
-        },
-    })
-
-    const deleteEmpresa = trpc.empresas.delete.useMutation({
-        onSuccess: () => {
-            toast.success('Empresa excluída!')
-            utils.empresas.list.invalidate()
-        },
-        onError: (error) => {
-            toast.error('Erro ao excluir', { description: error.message })
-        },
-    })
-
-    const deleteBanco = trpc.bancos.delete.useMutation({
-        onSuccess: () => {
-            toast.success('Banco excluído!')
-            utils.bancos.list.invalidate()
-        },
-        onError: (error) => {
-            toast.error('Erro ao excluir', { description: error.message })
-        },
-    })
-
-    const handleDelete = () => {
-        if (!deleteTarget) return
-        if (deleteTarget.tipo === 'categoria') {
-            deleteTipoDespesa.mutate(deleteTarget.id)
-        } else if (deleteTarget.tipo === 'empresa') {
-            deleteEmpresa.mutate(deleteTarget.id)
-        } else {
-            deleteBanco.mutate(deleteTarget.id)
-        }
-        setDeleteConfirmOpen(false)
-        setDeleteTarget(null)
-    }
-
-    const confirmDelete = (id: string, nome: string, tipo: 'categoria' | 'empresa' | 'banco') => {
-        setDeleteTarget({ id, nome, tipo })
-        setDeleteConfirmOpen(true)
-    }
-
-    const filteredCategorias = tiposDespesa?.filter(t =>
-        t.nome.toLowerCase().includes(searchCategoria.toLowerCase())
-    ) || []
-
-    const filteredEmpresas = empresas?.filter(e =>
-        e.razao_social.toLowerCase().includes(searchEmpresa.toLowerCase()) ||
-        e.cnpj?.includes(searchEmpresa) ||
-        e.nome_fantasia?.toLowerCase().includes(searchEmpresa.toLowerCase())
-    ) || []
-
-    const filteredBancos = bancos?.filter(b =>
-        b.nome.toLowerCase().includes(searchBanco.toLowerCase()) ||
-        b.codigo?.includes(searchBanco)
-    ) || []
-
     return (
-        <div className="space-y-4 sm:space-y-6">
-            {/* Header - Desktop only, hidden on lg+ where breadcrumbs are visible */}
-            <div className="hidden sm:block lg:hidden">
+        <div className="space-y-6">
+            <div>
                 <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
                 <p className="text-muted-foreground">
                     Gerencie categorias, empresas e preferências do sistema
                 </p>
             </div>
 
-            {/* Empresas */}
-            <Card>
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 pb-3 sm:pb-4 px-3 sm:px-6 pt-3 sm:pt-6">
-                    <div className="min-w-0">
-                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                            <Building2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                            <span className="truncate">Empresas</span>
-                            {empresas && <Badge variant="secondary" className="text-xs">{empresas.length}</Badge>}
-                        </CardTitle>
-                        <CardDescription className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
-                            Cadastre empresas para associar às suas contas
-                        </CardDescription>
-                    </div>
-                    <Button
-                        onClick={() => {
-                            setEditingEmpresa(null)
-                            setEmpresaDialogOpen(true)
-                        }}
-                        size="sm"
-                        className="w-full sm:w-auto"
-                    >
-                        <Plus className="mr-1.5 h-4 w-4" />
-                        Nova Empresa
-                    </Button>
-                </CardHeader>
-                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-                    {/* Search */}
-                    <div className="relative mb-3 sm:mb-4">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por nome ou CNPJ..."
-                            value={searchEmpresa}
-                            onChange={(e) => setSearchEmpresa(e.target.value)}
-                            className="pl-9"
-                        />
-                    </div>
+            <Tabs defaultValue="categorias" className="space-y-4">
+                <TabsList>
+                    <TabsTrigger value="categorias" className="flex items-center gap-2">
+                        <Tags className="h-4 w-4" />
+                        Categorias
+                    </TabsTrigger>
+                    <TabsTrigger value="empresas" className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Empresas
+                    </TabsTrigger>
+                    <TabsTrigger value="bancos" className="flex items-center gap-2">
+                        <Landmark className="h-4 w-4" />
+                        Bancos
+                    </TabsTrigger>
+                </TabsList>
 
-                    {/* List */}
-                    {loadingEmpresas ? (
-                        <div className="space-y-2">
-                            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 sm:h-16" />)}
-                        </div>
-                    ) : filteredEmpresas.length === 0 ? (
-                        <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
-                            {searchEmpresa ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada'}
-                        </div>
-                    ) : (
-                        <div className="grid gap-2 md:grid-cols-2">
-                            {filteredEmpresas.map((empresa) => (
-                                <div
-                                    key={empresa.id}
-                                    className="flex items-center justify-between rounded-lg border p-2.5 sm:p-3 hover:bg-muted/50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
-                                            <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-medium text-sm sm:text-base truncate">
-                                                {empresa.nome_fantasia || empresa.razao_social}
-                                            </p>
-                                            {empresa.cnpj && (
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    {empresa.cnpj}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() => {
-                                                setEditingEmpresa(empresa.id)
-                                                setEmpresaDialogOpen(true)
-                                            }}
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-red-600 hover:text-red-700"
-                                            onClick={() => confirmDelete(empresa.id, empresa.razao_social, 'empresa')}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                <TabsContent value="categorias">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Categorias de Despesa</CardTitle>
+                            <CardDescription>
+                                Organize suas contas por tipo de gasto
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <CategoriasTab />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-            {/* Bancos */}
-            <Card>
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 pb-3 sm:pb-4 px-3 sm:px-6 pt-3 sm:pt-6">
-                    <div className="min-w-0">
-                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                            <span className="truncate">Bancos</span>
-                            {bancos && <Badge variant="secondary" className="text-xs">{bancos.length}</Badge>}
-                        </CardTitle>
-                        <CardDescription className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
-                            Cadastre bancos para suas contas e empresas
-                        </CardDescription>
-                    </div>
-                    <Button
-                        onClick={() => {
-                            setEditingBanco(null)
-                            setBancoDialogOpen(true)
-                        }}
-                        size="sm"
-                        className="w-full sm:w-auto"
-                    >
-                        <Plus className="mr-1.5 h-4 w-4" />
-                        Novo Banco
-                    </Button>
-                </CardHeader>
-                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-                    {/* Search */}
-                    <div className="relative mb-3 sm:mb-4">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por nome ou código..."
-                            value={searchBanco}
-                            onChange={(e) => setSearchBanco(e.target.value)}
-                            className="pl-9"
-                        />
-                    </div>
+                <TabsContent value="empresas">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Empresas</CardTitle>
+                            <CardDescription>
+                                Cadastre empresas para associar às suas contas
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <EmpresasTab />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                    {/* List */}
-                    {loadingBancos ? (
-                        <div className="space-y-2">
-                            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 sm:h-16" />)}
-                        </div>
-                    ) : filteredBancos.length === 0 ? (
-                        <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
-                            {searchBanco ? 'Nenhum banco encontrado' : 'Nenhum banco cadastrado'}
-                        </div>
-                    ) : (
-                        <div className="grid gap-2 md:grid-cols-2">
-                            {filteredBancos.map((banco) => (
-                                <div
-                                    key={banco.id}
-                                    className="flex items-center justify-between rounded-lg border p-2.5 sm:p-3 hover:bg-muted/50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
-                                            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-medium text-sm sm:text-base truncate">
-                                                {banco.nome}
-                                            </p>
-                                            {banco.codigo && (
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    Cód: {banco.codigo}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() => {
-                                                setEditingBanco(banco.id)
-                                                setBancoDialogOpen(true)
-                                            }}
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-red-600 hover:text-red-700"
-                                            onClick={() => confirmDelete(banco.id, banco.nome, 'banco')}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Categorias de Despesa */}
-            <Card>
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 pb-3 sm:pb-4 px-3 sm:px-6 pt-3 sm:pt-6">
-                    <div className="min-w-0">
-                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                            <Tags className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                            <span className="truncate">Categorias de Despesa</span>
-                            {tiposDespesa && <Badge variant="secondary" className="text-xs">{tiposDespesa.length}</Badge>}
-                        </CardTitle>
-                        <CardDescription className="mt-0.5 sm:mt-1 text-xs sm:text-sm">
-                            Organize suas contas por tipo de gasto
-                        </CardDescription>
-                    </div>
-                    <Button
-                        onClick={() => {
-                            setEditingTipoDespesa(null)
-                            setTipoDespesaDialogOpen(true)
-                        }}
-                        size="sm"
-                        className="w-full sm:w-auto"
-                    >
-                        <Plus className="mr-1.5 h-4 w-4" />
-                        Nova Categoria
-                    </Button>
-                </CardHeader>
-                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-                    {/* Search */}
-                    <div className="relative mb-3 sm:mb-4">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar categoria..."
-                            value={searchCategoria}
-                            onChange={(e) => setSearchCategoria(e.target.value)}
-                            className="pl-9"
-                        />
-                    </div>
-
-                    {/* List */}
-                    {loadingCategorias ? (
-                        <div className="space-y-2">
-                            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 sm:h-14" />)}
-                        </div>
-                    ) : filteredCategorias.length === 0 ? (
-                        <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
-                            {searchCategoria ? 'Nenhuma categoria encontrada' : 'Nenhuma categoria cadastrada'}
-                        </div>
-                    ) : (
-                        <div className="grid gap-2 md:grid-cols-2">
-                            {filteredCategorias.map((tipo) => (
-                                <div
-                                    key={tipo.id}
-                                    className="flex items-center justify-between rounded-lg border p-2.5 sm:p-3 hover:bg-muted/50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                        <div
-                                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0"
-                                            style={{ backgroundColor: `${tipo.cor || '#6366f1'}20` }}
-                                        >
-                                            <div
-                                                className="h-4 w-4 sm:h-5 sm:w-5 rounded-full"
-                                                style={{ backgroundColor: tipo.cor || '#6366f1' }}
-                                            />
-                                        </div>
-                                        <p className="font-medium text-sm sm:text-base truncate">{tipo.nome}</p>
-                                    </div>
-                                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() => {
-                                                setEditingTipoDespesa(tipo.id)
-                                                setTipoDespesaDialogOpen(true)
-                                            }}
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-red-600 hover:text-red-700"
-                                            onClick={() => confirmDelete(tipo.id, tipo.nome, 'categoria')}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Dialogs */}
-            <TipoDespesaDialog
-                open={tipoDespesaDialogOpen}
-                onOpenChange={setTipoDespesaDialogOpen}
-                tipoDespesaId={editingTipoDespesa}
-            />
-
-            <EmpresaDialog
-                open={empresaDialogOpen}
-                onOpenChange={setEmpresaDialogOpen}
-                empresaId={editingEmpresa}
-            />
-
-            <BancoDialog
-                open={bancoDialogOpen}
-                onOpenChange={setBancoDialogOpen}
-                bancoId={editingBanco}
-            />
-
-            {/* Delete Confirmation */}
-            <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tem certeza que deseja excluir o item "{deleteTarget?.nome}"?
-                            Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-                        <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDelete}
-                            className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
-                        >
-                            Excluir
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                <TabsContent value="bancos">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Bancos</CardTitle>
+                            <CardDescription>
+                                Cadastre bancos para suas contas e empresas
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <BancosTab />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }
