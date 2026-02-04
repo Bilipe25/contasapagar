@@ -23,11 +23,26 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command'
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 
 const schema = z.object({
     nome: z.string().min(1, 'Nome é obrigatório'),
     cor: z.string().optional(),
+    plano_conta_id: z.string().uuid().optional().nullable(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -52,8 +67,15 @@ export function TipoDespesaDialog({ open, onOpenChange, tipoDespesaId }: TipoDes
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
-        defaultValues: { nome: '', cor: '#6366f1' },
+        defaultValues: { nome: '', cor: '#6366f1', plano_conta_id: null },
     })
+
+    // Fetch plano de contas for selection (only analytic)
+    const { data: planoContas } = trpc.planoContas.list.useQuery(undefined, {
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    })
+
+    const contasAnaliticas = planoContas?.filter(c => c.modo === 'ANALITICA') || []
 
     // Fetch tipo despesa data if editing
     const { data: tipoDespesa } = trpc.tiposDespesa.list.useQuery(undefined, {
@@ -64,9 +86,13 @@ export function TipoDespesaDialog({ open, onOpenChange, tipoDespesaId }: TipoDes
     // Update form when data is loaded
     useEffect(() => {
         if (tipoDespesa) {
-            form.reset({ nome: tipoDespesa.nome, cor: tipoDespesa.cor || '#6366f1' })
+            form.reset({
+                nome: tipoDespesa.nome,
+                cor: tipoDespesa.cor || '#6366f1',
+                plano_conta_id: tipoDespesa.plano_conta_id || null
+            })
         } else if (!isEditing) {
-            form.reset({ nome: '', cor: '#6366f1' })
+            form.reset({ nome: '', cor: '#6366f1', plano_conta_id: null })
         }
     }, [tipoDespesa, isEditing, form])
 
@@ -127,6 +153,68 @@ export function TipoDespesaDialog({ open, onOpenChange, tipoDespesaId }: TipoDes
                                     <FormControl>
                                         <Input placeholder="Nome da categoria" {...field} />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="plano_conta_id"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Plano de Contas (Vínculo Contábil)</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    className={cn(
+                                                        "w-full justify-between",
+                                                        !field.value && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {field.value
+                                                        ? contasAnaliticas.find(
+                                                            (c) => c.id === field.value
+                                                        )?.descricao
+                                                        : "Selecione a conta contábil..."}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[400px] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Buscar conta..." />
+                                                <CommandList>
+                                                    <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {contasAnaliticas.map((conta) => (
+                                                            <CommandItem
+                                                                value={conta.descricao}
+                                                                key={conta.id}
+                                                                onSelect={() => {
+                                                                    form.setValue("plano_conta_id", conta.id)
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        conta.id === field.value
+                                                                            ? "opacity-100"
+                                                                            : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                <span className="font-mono text-muted-foreground mr-2">{conta.codigo}</span>
+                                                                {conta.descricao}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                     <FormMessage />
                                 </FormItem>
                             )}

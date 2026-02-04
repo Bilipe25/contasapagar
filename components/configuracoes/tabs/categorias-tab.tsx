@@ -28,9 +28,10 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { TipoDespesaDialog } from '@/components/configuracoes/tipo-despesa-dialog'
-import { Tags, Edit, Plus, Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Tags, Edit, Plus, Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Folder } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
 
 type SortDirection = 'asc' | 'desc'
 type SortColumn = 'nome'
@@ -140,7 +141,17 @@ export function CategoriasTab() {
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <span className="font-medium">{categoria.nome}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">{categoria.nome}</span>
+                                            {categoria.plano_contas && (
+                                                <div className="flex items-center gap-1 mt-1 text-muted-foreground">
+                                                    <Folder className="h-3 w-3" />
+                                                    <span className="text-xs font-mono">
+                                                        {categoria.plano_contas.codigo} - {categoria.plano_contas.descricao}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">

@@ -1,76 +1,54 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, Landmark, Tags } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { CategoriasTab } from '@/components/configuracoes/tabs/categorias-tab'
 import { EmpresasTab } from '@/components/configuracoes/tabs/empresas-tab'
 import { BancosTab } from '@/components/configuracoes/tabs/bancos-tab'
+import { PlanoContasTab } from '@/components/configuracoes/tabs/plano-contas-tab'
 
 export default function ConfiguracoesPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
+                <h2 className="text-3xl font-bold tracking-tight">Configurações</h2>
                 <p className="text-muted-foreground">
-                    Gerencie categorias, empresas e preferências do sistema
+                    Gerencie as configurações gerais do sistema.
                 </p>
             </div>
 
             <Tabs defaultValue="categorias" className="space-y-4">
                 <TabsList>
-                    <TabsTrigger value="categorias" className="flex items-center gap-2">
-                        <Tags className="h-4 w-4" />
-                        Categorias
-                    </TabsTrigger>
-                    <TabsTrigger value="empresas" className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        Empresas
-                    </TabsTrigger>
-                    <TabsTrigger value="bancos" className="flex items-center gap-2">
-                        <Landmark className="h-4 w-4" />
-                        Bancos
-                    </TabsTrigger>
+                    <TabsTrigger value="categorias">Categorias</TabsTrigger>
+                    <TabsTrigger value="empresas">Empresas</TabsTrigger>
+                    <TabsTrigger value="bancos">Bancos</TabsTrigger>
+                    <TabsTrigger value="plano-contas">Plano de Contas</TabsTrigger>
                 </TabsList>
-
-                <TabsContent value="categorias">
+                <TabsContent value="categorias" className="space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Categorias de Despesa</CardTitle>
-                            <CardDescription>
-                                Organize suas contas por tipo de gasto
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <CategoriasTab />
                         </CardContent>
                     </Card>
                 </TabsContent>
-
-                <TabsContent value="empresas">
+                <TabsContent value="empresas" className="space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Empresas</CardTitle>
-                            <CardDescription>
-                                Cadastre empresas para associar às suas contas
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <EmpresasTab />
                         </CardContent>
                     </Card>
                 </TabsContent>
-
-                <TabsContent value="bancos">
+                <TabsContent value="bancos" className="space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Bancos</CardTitle>
-                            <CardDescription>
-                                Cadastre bancos para suas contas e empresas
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <BancosTab />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="plano-contas" className="space-y-4">
+                    <Card>
+                        <CardContent className="pt-6">
+                            <PlanoContasTab />
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -78,4 +56,3 @@ export default function ConfiguracoesPage() {
         </div>
     )
 }
-

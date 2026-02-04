@@ -57,7 +57,8 @@ import {
     Tag,
     ListOrdered,
     Check,
-    ChevronsUpDown
+    ChevronsUpDown,
+    Folder
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { addDays, format } from 'date-fns'
@@ -75,6 +76,7 @@ const contaSchema = z.object({
     intervalo_dias: z.string(),
     observacoes: z.string().optional(),
     banco_id: z.string().optional().nullable(),
+    plano_conta_id: z.string().optional().nullable(), // Nova classificação
 })
 
 type ContaFormValues = z.infer<typeof contaSchema>
@@ -101,6 +103,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
     const [popoverCategoria, setPopoverCategoria] = useState(false)
     const [comboFornecedor, setComboFornecedor] = useState(false)
     const [comboCategoria, setComboCategoria] = useState(false)
+    const [comboPlanoContas, setComboPlanoContas] = useState(false) // Novo combo
     const [comboEmpresa, setComboEmpresa] = useState(false)
     const [novaEmpresa, setNovaEmpresa] = useState('')
     const [popoverEmpresa, setPopoverEmpresa] = useState(false)
@@ -125,6 +128,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
             intervalo_dias: '30',
             observacoes: '',
             banco_id: '',
+            plano_conta_id: '',
         },
     })
 
@@ -132,7 +136,12 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
     const { data: fornecedores } = trpc.fornecedores.list.useQuery()
     const { data: tiposDespesa } = trpc.tiposDespesa.list.useQuery()
     const { data: empresas } = trpc.empresas.list.useQuery()
-    // Bancos fetched internally by BankSelect
+
+    // Fetch plano de contas (only analytic)
+    const { data: planoContas } = trpc.planoContas.list.useQuery(undefined, {
+        staleTime: 1000 * 60 * 5,
+    })
+    const contasAnaliticas = planoContas?.filter(c => c.modo === 'ANALITICA') || []
 
 
     // Fetch conta if editing
@@ -199,9 +208,40 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 intervalo_dias: '30',
                 observacoes: conta.observacoes || '',
                 banco_id: conta.banco_id || '',
+                plano_conta_id: conta.plano_conta_id || '',
             })
         }
     }, [conta, form])
+
+    // Auto-select Plano de Contas when Categoria changes
+    const selectedCategoriaId = form.watch('tipo_despesa_id')
+    useEffect(() => {
+        // Only run if not editing existing data to avoid overwriting user choice on load
+        // But wait, if user simplifies changes category in edit mode, it SHOULD update.
+        // We need to distinguish between "initial load" and "user change".
+        // React Hook Form handles "reset" separately. So watching the value here is mostly safe for "updates".
+
+        // Strategy: If selectedCategoriaId changes, and it matches a category with a link, update plano_conta_id.
+        // Caveat: This runs on initial load too if default is set.
+
+        if (!selectedCategoriaId || !tiposDespesa) return
+
+        const categoria = tiposDespesa.find(t => t.id === selectedCategoriaId)
+
+        // IMPORTANT: We should only auto-update if the current plano_conta_id is empty OR if the user just changed the category.
+        // Simpler approach: If category has a link, prefer that link.
+        // However, we want to respect if the user manually selected a different plano_conta_id? 
+        // For now, let's strictly follow "Category dictates Plan" as the default refined behavior.
+        // If user wants to override, they do it AFTER selecting category.
+
+        if (categoria?.plano_conta_id) {
+            const currentPlan = form.getValues('plano_conta_id');
+            // Update if different
+            if (currentPlan !== categoria.plano_conta_id) {
+                form.setValue('plano_conta_id', categoria.plano_conta_id, { shouldValidate: true })
+            }
+        }
+    }, [selectedCategoriaId, tiposDespesa, form])
 
     // Auto-select bank when company changes
     const selectedEmpresaId = form.watch('empresa_id')
@@ -212,8 +252,6 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
         if (empresa?.banco_padrao_id) {
             form.setValue('banco_id', empresa.banco_padrao_id)
         } else {
-            // If company has no default bank, we might want to plain it or leave it?
-            // User requested refinements. Let's clear it to match the company.
             form.setValue('banco_id', null)
         }
     }, [selectedEmpresaId, empresas, isEditing, form])
@@ -329,6 +367,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 descricao: data.descricao,
                 observacoes: data.observacoes,
                 banco_id: data.banco_id || null,
+                plano_conta_id: data.plano_conta_id || null,
             })
         } else {
             // Enviar parcelas personalizadas
@@ -351,6 +390,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 observacoes: data.observacoes,
                 parcelas: parcelasParaEnviar, // Array com valores e datas personalizadas
                 banco_id: data.banco_id || null,
+                plano_conta_id: data.plano_conta_id || null,
             })
         }
     }
@@ -746,6 +786,73 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                                 </PopoverContent>
                                                             </Popover>
                                                         </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            {/* Plano de Contas (Accounting Link) */}
+                                            <FormField
+                                                control={form.control}
+                                                name="plano_conta_id"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex flex-col">
+                                                        <FormLabel className="flex items-center gap-2">
+                                                            <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+                                                            Classificação Contábil
+                                                        </FormLabel>
+                                                        <Popover open={comboPlanoContas} onOpenChange={setComboPlanoContas}>
+                                                            <PopoverTrigger asChild>
+                                                                <FormControl>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        role="combobox"
+                                                                        className={cn(
+                                                                            "justify-between font-normal",
+                                                                            !field.value && "text-muted-foreground"
+                                                                        )}
+                                                                    >
+                                                                        {field.value
+                                                                            ? contasAnaliticas.find(
+                                                                                (c) => c.id === field.value
+                                                                            )?.descricao
+                                                                            : "Selecione ou deixe automático..."}
+                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    </Button>
+                                                                </FormControl>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-[400px] p-0">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Buscar conta..." />
+                                                                    <CommandList>
+                                                                        <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            {contasAnaliticas.map((conta) => (
+                                                                                <CommandItem
+                                                                                    value={conta.descricao}
+                                                                                    key={conta.id}
+                                                                                    onSelect={() => {
+                                                                                        form.setValue("plano_conta_id", conta.id)
+                                                                                        setComboPlanoContas(false)
+                                                                                    }}
+                                                                                >
+                                                                                    <Check
+                                                                                        className={cn(
+                                                                                            "mr-2 h-4 w-4",
+                                                                                            conta.id === field.value
+                                                                                                ? "opacity-100"
+                                                                                                : "opacity-0"
+                                                                                        )}
+                                                                                    />
+                                                                                    <span className="font-mono text-muted-foreground mr-2">{conta.codigo}</span>
+                                                                                    {conta.descricao}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}

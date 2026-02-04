@@ -6,7 +6,14 @@ export const tiposDespesaRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
         const { data, error } = await ctx.supabase
             .from('tipos_despesa')
-            .select('*')
+            .select(`
+                *,
+                plano_contas (
+                    id,
+                    codigo,
+                    descricao
+                )
+            `)
             .eq('user_id', ctx.user.id)
             .order('nome', { ascending: true })
 
@@ -21,6 +28,7 @@ export const tiposDespesaRouter = router({
                 nome: z.string().min(1),
                 cor: z.string().optional(),
                 icone: z.string().optional(),
+                plano_conta_id: z.string().uuid().optional().nullable(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -45,6 +53,7 @@ export const tiposDespesaRouter = router({
                 nome: z.string().min(1).optional(),
                 cor: z.string().optional(),
                 icone: z.string().optional(),
+                plano_conta_id: z.string().uuid().optional().nullable(),
             })
         )
         .mutation(async ({ ctx, input }) => {

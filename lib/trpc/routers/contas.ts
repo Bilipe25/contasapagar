@@ -25,6 +25,7 @@ export const contasRouter = router({
                     tipos_despesa(id, nome, cor),
                     empresas(id, razao_social, nome_fantasia, cnpj),
                     bancos(id, nome),
+                    plano_contas(id, codigo, descricao),
                     ${(input?.dataInicio || input?.dataFim) ? 'parcelas!inner' : 'parcelas'}(id, numero_parcela, valor_final, status, data_vencimento, data_pagamento)
                 `)
                 .eq('user_id', ctx.user.id)
@@ -125,6 +126,7 @@ export const contasRouter = router({
                     tipos_despesa(id, nome, cor),
                     empresas(id, razao_social, cnpj),
                     bancos(id, nome),
+                    plano_contas(id, codigo, descricao),
                     parcelas(*)
                 `)
                 .eq('id', input)
@@ -138,7 +140,6 @@ export const contasRouter = router({
                 })
             }
 
-            // Ordenar parcelas por número
             // Ordenar parcelas por número
             if (data.parcelas) {
                 data.parcelas.sort((a: { numero_parcela: number }, b: { numero_parcela: number }) => a.numero_parcela - b.numero_parcela)
@@ -168,6 +169,7 @@ export const contasRouter = router({
                     data_vencimento: z.string(),
                 })).optional(),
                 banco_id: z.string().uuid().optional().nullable(),
+                plano_conta_id: z.string().uuid().optional().nullable(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -175,6 +177,20 @@ export const contasRouter = router({
             const valorTotal = input.parcelas
                 ? input.parcelas.reduce((acc, p) => acc + p.valor, 0)
                 : input.valor_original * input.total_parcelas
+
+            // Auto-link: Buscar plano_conta_id da categoria se não informado
+            let planoContaId = input.plano_conta_id;
+            if (!planoContaId && input.tipo_despesa_id) {
+                const { data: categoria } = await ctx.supabase
+                    .from('tipos_despesa')
+                    .select('plano_conta_id')
+                    .eq('id', input.tipo_despesa_id)
+                    .single();
+
+                if (categoria?.plano_conta_id) {
+                    planoContaId = categoria.plano_conta_id;
+                }
+            }
 
             // 1. Criar a conta
             const { data: conta, error: contaError } = await ctx.supabase
@@ -191,6 +207,7 @@ export const contasRouter = router({
                     observacoes: input.observacoes,
                     status: 'ativa',
                     banco_id: input.banco_id || null,
+                    plano_conta_id: planoContaId || null,
                 })
                 .select()
                 .single()
@@ -325,10 +342,28 @@ export const contasRouter = router({
                 observacoes: z.string().optional().nullable(),
                 status: z.enum(['ativa', 'quitada', 'cancelada']).optional(),
                 banco_id: z.string().uuid().optional().nullable(),
+                plano_conta_id: z.string().uuid().optional().nullable(),
             })
         )
         .mutation(async ({ ctx, input }) => {
             const { id, ...updateData } = input
+
+            // Auto-link logic for update:
+            // If type changed AND plano_conta_id was not explicitly provided in update
+            let planoContaIdToUpdate = updateData.plano_conta_id;
+
+            if (updateData.tipo_despesa_id && planoContaIdToUpdate === undefined) {
+                // User changed category but didn't specify account - try to find link
+                const { data: categoria } = await ctx.supabase
+                    .from('tipos_despesa')
+                    .select('plano_conta_id')
+                    .eq('id', updateData.tipo_despesa_id)
+                    .single();
+
+                if (categoria?.plano_conta_id) {
+                    planoContaIdToUpdate = categoria.plano_conta_id;
+                }
+            }
 
             // Sanitize empty strings to null for UUID fields to avoid 22P02 error
             const sanitizedUpdateData = {
@@ -337,6 +372,8 @@ export const contasRouter = router({
                 ...(updateData.tipo_despesa_id !== undefined && { tipo_despesa_id: updateData.tipo_despesa_id || null }),
                 ...(updateData.empresa_id !== undefined && { empresa_id: updateData.empresa_id || null }),
                 ...(updateData.banco_id !== undefined && { banco_id: updateData.banco_id || null }),
+                // Add plano_conta_id if determined (either passed or auto-resolved)
+                ...(planoContaIdToUpdate !== undefined && { plano_conta_id: planoContaIdToUpdate || null }),
             }
 
             const { data, error } = await ctx.supabase
