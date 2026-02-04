@@ -245,6 +245,22 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
         }
     }, [selectedCategoriaId, tiposDespesa, form])
 
+    // Auto-select Empresa Padrão do Fornecedor
+    const selectedFornecedorId = form.watch('fornecedor_id')
+    useEffect(() => {
+        if (!selectedFornecedorId || !fornecedores) return
+
+        const fornecedor = fornecedores.find(f => f.id === selectedFornecedorId)
+
+        if (fornecedor?.empresa_id) {
+            const currentEmpresa = form.getValues('empresa_id')
+            // Update if different to ensure valid sync
+            if (currentEmpresa !== fornecedor.empresa_id) {
+                form.setValue('empresa_id', fornecedor.empresa_id)
+            }
+        }
+    }, [selectedFornecedorId, fornecedores, form])
+
     // Auto-select bank when company changes
     const selectedEmpresaId = form.watch('empresa_id')
     useEffect(() => {

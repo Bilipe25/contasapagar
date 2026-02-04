@@ -14,6 +14,13 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog'
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
     Form,
     FormControl,
     FormField,
@@ -43,8 +50,10 @@ const schema = z.object({
     uf: z.string().optional(),
     cep: z.string().optional(),
     // Campos adicionais
+    // Campos adicionais
     inscricao_estadual: z.string().optional(),
     situacao_cadastral: z.string().optional(),
+    empresa_id: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -58,6 +67,8 @@ interface FornecedorDialogProps {
 export function FornecedorDialog({ open, onOpenChange, fornecedorId }: FornecedorDialogProps) {
     const utils = trpc.useUtils()
     const isEditing = !!fornecedorId
+
+    const { data: empresas } = trpc.empresas.list.useQuery()
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -76,6 +87,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
             cep: '',
             inscricao_estadual: '',
             situacao_cadastral: '',
+            empresa_id: '',
         },
     })
 
@@ -103,6 +115,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 cep: fornecedor.cep || '',
                 inscricao_estadual: fornecedor.inscricao_estadual || '',
                 situacao_cadastral: fornecedor.situacao_cadastral || '',
+                empresa_id: fornecedor.empresa_id || '',
             })
         } else if (!isEditing) {
             form.reset({
@@ -120,6 +133,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 cep: '',
                 inscricao_estadual: '',
                 situacao_cadastral: '',
+                empresa_id: '',
             })
         }
     }, [fornecedor, isEditing, form])
@@ -333,6 +347,33 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                                     )}
                                 />
                             </div>
+
+                            {/* Empresa Padrão */}
+                            <FormField
+                                control={form.control}
+                                name="empresa_id"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Empresa Padrão</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Selecione a empresa pagadora padrão..." />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="none_value">Nenhuma (Padrão)</SelectItem>
+                                                {empresas?.map((empresa) => (
+                                                    <SelectItem key={empresa.id} value={empresa.id}>
+                                                        {empresa.nome_fantasia || empresa.razao_social}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
 
                         <Separator />

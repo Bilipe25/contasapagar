@@ -220,6 +220,17 @@ export const contasRouter = router({
                 })
             }
 
+
+            // Auto-learn: Atualizar empresa padrão do fornecedor se fornecido na conta
+            if (input.fornecedor_id && input.empresa_id) {
+                // Não falha a transação se isso falhar, é um side-effect "nice to have"
+                await ctx.supabase
+                    .from('fornecedores')
+                    .update({ empresa_id: input.empresa_id })
+                    .eq('id', input.fornecedor_id)
+                    .eq('user_id', ctx.user.id) // Segurança extra
+            }
+
             // 2. Gerar parcelas
             let parcelasParaInserir = []
 
