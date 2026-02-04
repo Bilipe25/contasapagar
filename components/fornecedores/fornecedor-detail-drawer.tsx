@@ -35,6 +35,7 @@ import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { SupplierAccountsList } from './supplier-accounts-list'
+import { SupplierAnalytics } from './supplier-analytics'
 
 interface FornecedorDetailDrawerProps {
     fornecedorId: string | null
@@ -134,11 +135,13 @@ export function FornecedorDetailDrawer({
     const { data: fornecedores, isLoading: loadingFornecedor } = trpc.fornecedores.list.useQuery(undefined, {
         enabled: !!fornecedorId,
     })
-    const { data: stats, isLoading: loadingStats } = trpc.fornecedores.stats.useQuery()
-
-    const fornecedor = fornecedores?.find(f => f.id === fornecedorId)
+    const { data: stats, isLoading: loadingStats } = trpc.fornecedores.stats.useQuery(fornecedorId!, {
+        enabled: !!fornecedorId,
+        retry: false
+    })
     const rawStats = fornecedorId && stats?.[fornecedorId]
     const fornecedorStats = rawStats && typeof rawStats === 'object' ? rawStats : null
+    const fornecedor = fornecedores?.find((f: any) => f.id === fornecedorId)
 
     const isLoading = loadingFornecedor || loadingStats
 
@@ -329,15 +332,7 @@ export function FornecedorDetailDrawer({
 
                                 {/* Tab: Análises */}
                                 <TabsContent value="historico" className="mt-0 px-6 py-4">
-                                    <div className="text-center py-8">
-                                        <TrendingUp className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                                        <p className="text-sm text-muted-foreground">
-                                            Análises em breve
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Histórico de pagamentos e tendências
-                                        </p>
-                                    </div>
+                                    <SupplierAnalytics fornecedorId={fornecedorId} />
                                 </TabsContent>
                             </Tabs>
                         </div>

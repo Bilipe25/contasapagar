@@ -265,4 +265,144 @@ export const fornecedoresRouter = router({
 
         return statsByFornecedor
     }),
+
+    // Dados analíticos do fornecedor
+    analytics: protectedProcedure
+        .input(z.object({
+            fornecedorId: z.string().uuid(),
+            range: z.number().default(12) // Meses atrás
+        }))
+        .query(async ({ ctx, input }) => {
+            const startDate = new Date()
+            startDate.setDate(1) // Evitar overflow de mês (ex: 31 Jan -> Set Fev)
+            startDate.setMonth(startDate.getMonth() - input.range)
+            startDate.setHours(0, 0, 0, 0)
+
+            try {
+                const { data: contas, error } = await ctx.supabase
+                    .from('contas')
+                    .select('id,data_emissao,created_at,tipos_despesa(id,nome,cor),parcelas(id,valor_final,data_pagamento,data_vencimento,status)')
+                    .eq('fornecedor_id', input.fornecedorId)
+                    .eq('user_id', ctx.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(500) // Limite de segurança
+
+                if (error) {
+                    console.error('Supabase Error in analytics:', error)
+                    throw error
+                }
+
+                // Processar dados
+                const monthlyData: Record<string, { month: string, amount: number, count: number }> = {}
+                const categoryData: Record<string, { name: string, color: string, value: number }> = {}
+
+                // Status Stats
+                let totalPaid = 0
+                let totalPending = 0
+                let totalOverdue = 0
+
+                let totalAmount = 0
+                let maxBillAmount = 0
+                const uniqueCategories = new Set<string>()
+
+                // Inicializar meses vazios
+                for (let i = 0; i < input.range; i++) {
+                    const d = new Date()
+                    d.setDate(1) // Segurança
+                    d.setMonth(d.getMonth() - i)
+                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                    monthlyData[key] = { month: key, amount: 0, count: 0 }
+                }
+
+                let validContasCount = 0
+
+                contas?.forEach(conta => {
+                    // Determine best date: emissao -> created_at -> today
+                    const dateStr = conta.data_emissao || conta.created_at
+                    const date = new Date(dateStr)
+
+                    // Skip invalid dates
+                    if (isNaN(date.getTime())) return
+
+                    // Check if within range
+                    if (date < startDate) return
+
+                    validContasCount++
+
+                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
+                    const parcelas = (conta.parcelas as any[]) || []
+
+                    // Somar valor total da conta e processar status
+                    let contaValor = 0
+                    parcelas.forEach(p => {
+                        const val = p.valor_final || 0
+                        contaValor += val
+
+                        // Status aggregation
+                        if (p.status === 'pago') totalPaid += val
+                        else if (p.status === 'atrasado') totalOverdue += val
+                        else totalPending += val // pendente (or others treated as pending financial liability)
+                    })
+
+                    // Monthly
+                    // Se a chave não existe (futuro ou fora do range inicial), criar se for >= startDate
+                    if (!monthlyData[key] && date >= startDate) {
+                        monthlyData[key] = { month: key, amount: 0, count: 0 }
+                    }
+
+                    if (monthlyData[key]) {
+                        monthlyData[key].amount += contaValor
+                        monthlyData[key].count += 1
+                    }
+
+                    // Category
+                    // Handle potential array response for joins
+                    const tipoDespesaRaw = conta.tipos_despesa as any
+                    const tipoDespesa = Array.isArray(tipoDespesaRaw) ? tipoDespesaRaw[0] : tipoDespesaRaw
+
+                    const catName = tipoDespesa?.nome || 'Sem Categoria'
+                    const catColor = tipoDespesa?.cor || '#94a3b8' // slate-400
+
+                    if (!categoryData[catName]) {
+                        categoryData[catName] = { name: catName, color: catColor, value: 0 }
+                    }
+                    categoryData[catName].value += contaValor
+                    uniqueCategories.add(catName)
+
+                    // Totals
+                    totalAmount += contaValor
+                    if (contaValor > maxBillAmount) maxBillAmount = contaValor
+                })
+
+                // Converter para arrays
+                const monthlyHistory = Object.values(monthlyData)
+                    .sort((a, b) => a.month.localeCompare(b.month)) // Ordenar cronologicamente
+
+                const categoryDistribution = Object.values(categoryData)
+                    .sort((a, b) => b.value - a.value) // Maior gasto primeiro
+
+                const averageTicket = validContasCount ? totalAmount / validContasCount : 0
+
+                return {
+                    monthlyHistory,
+                    categoryDistribution,
+                    kpis: {
+                        totalAmount,
+                        averageTicket,
+                        maxBillAmount,
+                        totalContas: validContasCount,
+                        uniqueCategories: uniqueCategories.size,
+                        statusBreakdown: {
+                            paid: totalPaid,
+                            pending: totalPending,
+                            overdue: totalOverdue
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching supplier analytics:', err)
+                throw new Error('Falha ao buscar análises do fornecedor') // Better error for client
+            }
+        }),
 })
