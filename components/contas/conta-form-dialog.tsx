@@ -20,6 +20,7 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
+    FormDescription,
 } from '@/components/ui/form'
 import {
     Select,
@@ -63,6 +64,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { addDays, format } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const contaSchema = z.object({
     fornecedor_id: z.string().optional(),
@@ -577,549 +579,585 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                 </div>
                             </div>
 
-                            <div className="p-6">
-                                {/* Layout em 2 Colunas */}
-                                <div className="grid gap-6 lg:grid-cols-2">
-                                    {/* COLUNA ESQUERDA: Informações */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
-                                            <Building2 className="h-4 w-4" />
-                                            Informações
-                                        </div>
+                            <Tabs defaultValue="geral" className="w-full">
+                                <div className="px-6 pt-4 border-b bg-background sticky top-[73px] z-10">
+                                    <TabsList className="w-full justify-start h-auto p-0 bg-transparent space-x-6">
+                                        <TabsTrigger
+                                            value="geral"
+                                            className="h-10 px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none transition-none"
+                                        >
+                                            Dados do Lançamento
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            value="contabil"
+                                            className="h-10 px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none transition-none"
+                                        >
+                                            Informações Contábeis
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </div>
 
-                                        {/* Fornecedor e Categoria Empilhados (Vertical) */}
-                                        <div className="space-y-3">
-                                            {/* Fornecedor com busca + botão novo */}
-                                            <FormField
-                                                control={form.control}
-                                                name="fornecedor_id"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-col">
-                                                        <FormLabel>Fornecedor</FormLabel>
-                                                        <div className="flex gap-2">
-                                                            <Popover open={comboFornecedor} onOpenChange={setComboFornecedor}>
-                                                                <PopoverTrigger asChild>
-                                                                    <FormControl>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            role="combobox"
-                                                                            aria-expanded={comboFornecedor}
-                                                                            className={cn(
-                                                                                "flex-1 justify-between font-normal",
-                                                                                !field.value && "text-muted-foreground"
-                                                                            )}
-                                                                        >
-                                                                            {field.value
-                                                                                ? fornecedores?.find((f) => f.id === field.value)?.nome
-                                                                                : "Buscar fornecedor..."}
-                                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                        </Button>
-                                                                    </FormControl>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-[300px] p-0" align="start">
-                                                                    <Command>
-                                                                        <CommandInput placeholder="Buscar fornecedor..." />
-                                                                        <CommandList>
-                                                                            <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
-                                                                            <CommandGroup>
-                                                                                {fornecedores?.map((f) => (
-                                                                                    <CommandItem
-                                                                                        key={f.id}
-                                                                                        value={f.nome}
-                                                                                        onSelect={() => {
-                                                                                            field.onChange(f.id)
-                                                                                            setComboFornecedor(false)
-                                                                                        }}
-                                                                                    >
-                                                                                        <Check
-                                                                                            className={cn(
-                                                                                                "mr-2 h-4 w-4",
-                                                                                                field.value === f.id ? "opacity-100" : "opacity-0"
-                                                                                            )}
-                                                                                        />
-                                                                                        {f.nome}
-                                                                                    </CommandItem>
-                                                                                ))}
-                                                                            </CommandGroup>
-                                                                        </CommandList>
-                                                                    </Command>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                            <Popover open={popoverFornecedor} onOpenChange={setPopoverFornecedor}>
-                                                                <PopoverTrigger asChild>
-                                                                    <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                                                                        <Plus className="h-4 w-4" />
-                                                                    </Button>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-64" align="end">
-                                                                    <div className="space-y-2">
-                                                                        <p className="text-sm font-medium">Novo Fornecedor</p>
-                                                                        <Input
-                                                                            placeholder="Nome do fornecedor"
-                                                                            value={novoFornecedor}
-                                                                            onChange={(e) => setNovoFornecedor(e.target.value)}
-                                                                        />
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            className="w-full"
-                                                                            disabled={!novoFornecedor || criarFornecedor.isPending}
-                                                                            onClick={() => criarFornecedor.mutate({ nome: novoFornecedor })}
-                                                                        >
-                                                                            {criarFornecedor.isPending ? (
-                                                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                                            ) : (
-                                                                                'Criar'
-                                                                            )}
-                                                                        </Button>
-                                                                    </div>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                        </div>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                <div className="p-6">
+                                    <TabsContent value="geral" className="m-0 focus-visible:ring-0 focus-visible:outline-none">
+                                        {/* Layout em 2 Colunas */}
+                                        <div className="grid gap-6 lg:grid-cols-2">
+                                            {/* COLUNA ESQUERDA: Informações */}
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
+                                                    <Building2 className="h-4 w-4" />
+                                                    Informações Básicas
+                                                </div>
 
-                                            {/* Categoria com busca + botão novo */}
-                                            <FormField
-                                                control={form.control}
-                                                name="tipo_despesa_id"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-col">
-                                                        <FormLabel>Categoria</FormLabel>
-                                                        <div className="flex gap-2">
-                                                            <Popover open={comboCategoria} onOpenChange={setComboCategoria}>
-                                                                <PopoverTrigger asChild>
-                                                                    <FormControl>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            role="combobox"
-                                                                            aria-expanded={comboCategoria}
-                                                                            className={cn(
-                                                                                "flex-1 justify-between font-normal",
-                                                                                !field.value && "text-muted-foreground"
-                                                                            )}
-                                                                        >
-                                                                            {field.value ? (
-                                                                                <span className="flex items-center gap-2">
-                                                                                    {tiposDespesa?.find((t) => t.id === field.value)?.cor && (
-                                                                                        <span
-                                                                                            className="w-3 h-3 rounded-full"
-                                                                                            style={{ backgroundColor: tiposDespesa.find((t) => t.id === field.value)?.cor }}
-                                                                                        />
+                                                {/* Fornecedor e Categoria Empilhados (Vertical) */}
+                                                <div className="space-y-3">
+                                                    {/* Fornecedor com busca + botão novo */}
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="fornecedor_id"
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex flex-col">
+                                                                <FormLabel>Fornecedor</FormLabel>
+                                                                <div className="flex gap-2">
+                                                                    <Popover open={comboFornecedor} onOpenChange={setComboFornecedor}>
+                                                                        <PopoverTrigger asChild>
+                                                                            <FormControl>
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    role="combobox"
+                                                                                    aria-expanded={comboFornecedor}
+                                                                                    className={cn(
+                                                                                        "flex-1 justify-between font-normal",
+                                                                                        !field.value && "text-muted-foreground"
                                                                                     )}
-                                                                                    {tiposDespesa?.find((t) => t.id === field.value)?.nome}
-                                                                                </span>
-                                                                            ) : (
-                                                                                "Buscar categoria..."
-                                                                            )}
-                                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                        </Button>
-                                                                    </FormControl>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-[300px] p-0" align="start">
-                                                                    <Command>
-                                                                        <CommandInput placeholder="Buscar categoria..." />
-                                                                        <CommandList>
-                                                                            <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
-                                                                            <CommandGroup>
-                                                                                {tiposDespesa?.map((t) => (
-                                                                                    <CommandItem
-                                                                                        key={t.id}
-                                                                                        value={t.nome}
-                                                                                        onSelect={() => {
-                                                                                            field.onChange(t.id)
-                                                                                            setComboCategoria(false)
-                                                                                        }}
-                                                                                    >
-                                                                                        <Check
-                                                                                            className={cn(
-                                                                                                "mr-2 h-4 w-4",
-                                                                                                field.value === t.id ? "opacity-100" : "opacity-0"
-                                                                                            )}
-                                                                                        />
+                                                                                >
+                                                                                    {field.value
+                                                                                        ? fornecedores?.find((f) => f.id === field.value)?.nome
+                                                                                        : "Buscar fornecedor..."}
+                                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                                </Button>
+                                                                            </FormControl>
+                                                                        </PopoverTrigger>
+                                                                        <PopoverContent className="w-[300px] p-0" align="start">
+                                                                            <Command>
+                                                                                <CommandInput placeholder="Buscar fornecedor..." />
+                                                                                <CommandList>
+                                                                                    <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
+                                                                                    <CommandGroup>
+                                                                                        {fornecedores?.map((f) => (
+                                                                                            <CommandItem
+                                                                                                key={f.id}
+                                                                                                value={f.nome}
+                                                                                                onSelect={() => {
+                                                                                                    field.onChange(f.id)
+                                                                                                    setComboFornecedor(false)
+                                                                                                }}
+                                                                                            >
+                                                                                                <Check
+                                                                                                    className={cn(
+                                                                                                        "mr-2 h-4 w-4",
+                                                                                                        field.value === f.id ? "opacity-100" : "opacity-0"
+                                                                                                    )}
+                                                                                                />
+                                                                                                {f.nome}
+                                                                                            </CommandItem>
+                                                                                        ))}
+                                                                                    </CommandGroup>
+                                                                                </CommandList>
+                                                                            </Command>
+                                                                        </PopoverContent>
+                                                                    </Popover>
+                                                                    <Popover open={popoverFornecedor} onOpenChange={setPopoverFornecedor}>
+                                                                        <PopoverTrigger asChild>
+                                                                            <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                                                                                <Plus className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </PopoverTrigger>
+                                                                        <PopoverContent className="w-64" align="end">
+                                                                            <div className="space-y-2">
+                                                                                <p className="text-sm font-medium">Novo Fornecedor</p>
+                                                                                <Input
+                                                                                    placeholder="Nome do fornecedor"
+                                                                                    value={novoFornecedor}
+                                                                                    onChange={(e) => setNovoFornecedor(e.target.value)}
+                                                                                />
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    size="sm"
+                                                                                    className="w-full"
+                                                                                    disabled={!novoFornecedor || criarFornecedor.isPending}
+                                                                                    onClick={() => criarFornecedor.mutate({ nome: novoFornecedor })}
+                                                                                >
+                                                                                    {criarFornecedor.isPending ? (
+                                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                    ) : (
+                                                                                        'Criar'
+                                                                                    )}
+                                                                                </Button>
+                                                                            </div>
+                                                                        </PopoverContent>
+                                                                    </Popover>
+                                                                </div>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+
+                                                    {/* Categoria com busca + botão novo */}
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="tipo_despesa_id"
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex flex-col">
+                                                                <FormLabel>Categoria</FormLabel>
+                                                                <div className="flex gap-2">
+                                                                    <Popover open={comboCategoria} onOpenChange={setComboCategoria}>
+                                                                        <PopoverTrigger asChild>
+                                                                            <FormControl>
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    role="combobox"
+                                                                                    aria-expanded={comboCategoria}
+                                                                                    className={cn(
+                                                                                        "flex-1 justify-between font-normal",
+                                                                                        !field.value && "text-muted-foreground"
+                                                                                    )}
+                                                                                >
+                                                                                    {field.value ? (
                                                                                         <span className="flex items-center gap-2">
-                                                                                            {t.cor && (
+                                                                                            {tiposDespesa?.find((t) => t.id === field.value)?.cor && (
                                                                                                 <span
                                                                                                     className="w-3 h-3 rounded-full"
-                                                                                                    style={{ backgroundColor: t.cor }}
+                                                                                                    style={{ backgroundColor: tiposDespesa.find((t) => t.id === field.value)?.cor }}
                                                                                                 />
                                                                                             )}
-                                                                                            {t.nome}
+                                                                                            {tiposDespesa?.find((t) => t.id === field.value)?.nome}
                                                                                         </span>
-                                                                                    </CommandItem>
-                                                                                ))}
-                                                                            </CommandGroup>
-                                                                        </CommandList>
-                                                                    </Command>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                            <Popover open={popoverCategoria} onOpenChange={setPopoverCategoria}>
-                                                                <PopoverTrigger asChild>
-                                                                    <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                                                                        <Plus className="h-4 w-4" />
-                                                                    </Button>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-64" align="end">
-                                                                    <div className="space-y-2">
-                                                                        <p className="text-sm font-medium">Nova Categoria</p>
-                                                                        <Input
-                                                                            placeholder="Nome da categoria"
-                                                                            value={novaCategoria}
-                                                                            onChange={(e) => setNovaCategoria(e.target.value)}
-                                                                        />
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            className="w-full"
-                                                                            disabled={!novaCategoria || criarCategoria.isPending}
-                                                                            onClick={() => criarCategoria.mutate({ nome: novaCategoria })}
-                                                                        >
-                                                                            {criarCategoria.isPending ? (
-                                                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                                            ) : (
-                                                                                'Criar'
-                                                                            )}
-                                                                        </Button>
-                                                                    </div>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                        </div>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            {/* Plano de Contas (Accounting Link) */}
-                                            <FormField
-                                                control={form.control}
-                                                name="plano_conta_id"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-col">
-                                                        <FormLabel className="flex items-center gap-2">
-                                                            <Folder className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            Classificação Contábil
-                                                        </FormLabel>
-                                                        <Popover open={comboPlanoContas} onOpenChange={setComboPlanoContas}>
-                                                            <PopoverTrigger asChild>
-                                                                <FormControl>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        role="combobox"
-                                                                        className={cn(
-                                                                            "justify-between font-normal",
-                                                                            !field.value && "text-muted-foreground"
-                                                                        )}
-                                                                    >
-                                                                        {field.value
-                                                                            ? contasAnaliticas.find(
-                                                                                (c) => c.id === field.value
-                                                                            )?.descricao
-                                                                            : "Selecione ou deixe automático..."}
-                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                    </Button>
-                                                                </FormControl>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-[400px] p-0">
-                                                                <Command>
-                                                                    <CommandInput placeholder="Buscar conta..." />
-                                                                    <CommandList>
-                                                                        <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
-                                                                        <CommandGroup>
-                                                                            {contasAnaliticas.map((conta) => (
-                                                                                <CommandItem
-                                                                                    value={conta.descricao}
-                                                                                    key={conta.id}
-                                                                                    onSelect={() => {
-                                                                                        form.setValue("plano_conta_id", conta.id)
-                                                                                        setComboPlanoContas(false)
-                                                                                    }}
+                                                                                    ) : (
+                                                                                        "Buscar categoria..."
+                                                                                    )}
+                                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                                </Button>
+                                                                            </FormControl>
+                                                                        </PopoverTrigger>
+                                                                        <PopoverContent className="w-[300px] p-0" align="start">
+                                                                            <Command>
+                                                                                <CommandInput placeholder="Buscar categoria..." />
+                                                                                <CommandList>
+                                                                                    <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                                                    <CommandGroup>
+                                                                                        {tiposDespesa?.map((t) => (
+                                                                                            <CommandItem
+                                                                                                key={t.id}
+                                                                                                value={t.nome}
+                                                                                                onSelect={() => {
+                                                                                                    field.onChange(t.id)
+                                                                                                    setComboCategoria(false)
+                                                                                                }}
+                                                                                            >
+                                                                                                <Check
+                                                                                                    className={cn(
+                                                                                                        "mr-2 h-4 w-4",
+                                                                                                        field.value === t.id ? "opacity-100" : "opacity-0"
+                                                                                                    )}
+                                                                                                />
+                                                                                                <span className="flex items-center gap-2">
+                                                                                                    {t.cor && (
+                                                                                                        <span
+                                                                                                            className="w-3 h-3 rounded-full"
+                                                                                                            style={{ backgroundColor: t.cor }}
+                                                                                                        />
+                                                                                                    )}
+                                                                                                    {t.nome}
+                                                                                                </span>
+                                                                                            </CommandItem>
+                                                                                        ))}
+                                                                                    </CommandGroup>
+                                                                                </CommandList>
+                                                                            </Command>
+                                                                        </PopoverContent>
+                                                                    </Popover>
+                                                                    <Popover open={popoverCategoria} onOpenChange={setPopoverCategoria}>
+                                                                        <PopoverTrigger asChild>
+                                                                            <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                                                                                <Plus className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </PopoverTrigger>
+                                                                        <PopoverContent className="w-64" align="end">
+                                                                            <div className="space-y-2">
+                                                                                <p className="text-sm font-medium">Nova Categoria</p>
+                                                                                <Input
+                                                                                    placeholder="Nome da categoria"
+                                                                                    value={novaCategoria}
+                                                                                    onChange={(e) => setNovaCategoria(e.target.value)}
+                                                                                />
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    size="sm"
+                                                                                    className="w-full"
+                                                                                    disabled={!novaCategoria || criarCategoria.isPending}
+                                                                                    onClick={() => criarCategoria.mutate({ nome: novaCategoria })}
                                                                                 >
-                                                                                    <Check
-                                                                                        className={cn(
-                                                                                            "mr-2 h-4 w-4",
-                                                                                            conta.id === field.value
-                                                                                                ? "opacity-100"
-                                                                                                : "opacity-0"
-                                                                                        )}
-                                                                                    />
-                                                                                    <span className="font-mono text-muted-foreground mr-2">{conta.codigo}</span>
-                                                                                    {conta.descricao}
-                                                                                </CommandItem>
-                                                                            ))}
-                                                                        </CommandGroup>
-                                                                    </CommandList>
-                                                                </Command>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-
-                                        {/* Banco */}
-                                        <FormField
-                                            control={form.control}
-                                            name="banco_id"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Banco (Opcional)</FormLabel>
-                                                    <BankSelect
-                                                        value={field.value}
-                                                        onChange={field.onChange}
+                                                                                    {criarCategoria.isPending ? (
+                                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                    ) : (
+                                                                                        'Criar'
+                                                                                    )}
+                                                                                </Button>
+                                                                            </div>
+                                                                        </PopoverContent>
+                                                                    </Popover>
+                                                                </div>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
                                                     />
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                                                </div>
 
-                                        {/* Descrição */}
-                                        <FormField
-                                            control={form.control}
-                                            name="descricao"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Descrição</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Ex: Conta de luz, Aluguel..." {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        {/* Observações - MANTIDO NA COLUNA ESQUERDA */}
-                                        <FormField
-                                            control={form.control}
-                                            name="observacoes"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Observações (opcional)</FormLabel>
-                                                    <FormControl>
-                                                        <Textarea
-                                                            placeholder="Informações adicionais..."
-                                                            rows={4}
-                                                            className="resize-none"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-
-                                    {/* COLUNA DIREITA: Finanças (Valor, Datas, Parcelas) */}
-                                    {!isEditing && (
-                                        <div className="flex flex-col h-full space-y-4">
-
-                                            {/* Bloco de VALOR e DATAS - Destaque */}
-                                            <div className="bg-muted/40 p-5 rounded-xl border border-border/50 space-y-5">
-                                                {/* Valor Total com Input Grande */}
+                                                {/* Banco */}
                                                 <FormField
                                                     control={form.control}
-                                                    name="valor_total"
+                                                    name="banco_id"
                                                     render={({ field }) => (
-                                                        <FormItem className="space-y-1">
-                                                            <FormLabel className="text-xs uppercase tracking-wide text-muted-foreground font-bold">Valor Total</FormLabel>
+                                                        <FormItem>
+                                                            <FormLabel>Banco (Opcional)</FormLabel>
+                                                            <BankSelect
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                            />
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+
+                                                {/* Descrição */}
+                                                <FormField
+                                                    control={form.control}
+                                                    name="descricao"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Descrição</FormLabel>
                                                             <FormControl>
-                                                                <div className="relative group">
-                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-medium group-focus-within:text-primary transition-colors">R$</span>
-                                                                    <Input
-                                                                        type="text"
-                                                                        inputMode="decimal"
-                                                                        placeholder="0,00"
-                                                                        className="pl-10 h-14 text-2xl font-bold bg-background shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
-                                                                        {...field}
-                                                                    />
-                                                                </div>
+                                                                <Input placeholder="Ex: Conta de luz, Aluguel..." {...field} />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
                                                 />
 
-                                                {/* Linha de Datas */}
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="data_emissao"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-1">
-                                                                <FormLabel className="text-xs">Data Emissão</FormLabel>
-                                                                <FormControl>
-                                                                    <Input type="date" className="h-9 font-medium" {...field} />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="primeiro_vencimento"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-1">
-                                                                <div className="flex justify-between items-center">
-                                                                    <FormLabel className="text-xs">1º Vencimento</FormLabel>
-                                                                    {/* Atalhos rápidos de data */}
-                                                                    <Popover>
-                                                                        <PopoverTrigger asChild>
-                                                                            <Button variant="ghost" size="icon" className="h-4 w-4 text-muted-foreground hover:text-primary">
-                                                                                <Calendar className="h-3 w-3" />
-                                                                            </Button>
-                                                                        </PopoverTrigger>
-                                                                        <PopoverContent className="w-auto p-2" align="end">
-                                                                            <div className="grid grid-cols-2 gap-1">
-                                                                                {[
-                                                                                    { label: 'Hoje', days: 0 },
-                                                                                    { label: '+7 dias', days: 7 },
-                                                                                    { label: '+15 dias', days: 15 },
-                                                                                    { label: '+30 dias', days: 30 },
-                                                                                ].map(opt => (
-                                                                                    <Button
-                                                                                        key={opt.label}
-                                                                                        variant="ghost"
-                                                                                        size="sm"
-                                                                                        className="text-xs justify-start"
-                                                                                        onClick={() => {
-                                                                                            form.setValue('primeiro_vencimento', format(addDays(new Date(), opt.days), 'yyyy-MM-dd'))
-                                                                                        }}
-                                                                                    >
-                                                                                        {opt.label}
-                                                                                    </Button>
-                                                                                ))}
-                                                                            </div>
-                                                                        </PopoverContent>
-                                                                    </Popover>
-                                                                </div>
-                                                                <FormControl>
-                                                                    <Input type="date" className="h-9 font-medium" {...field} />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
+                                                {/* Observações */}
+                                                <FormField
+                                                    control={form.control}
+                                                    name="observacoes"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Observações (opcional)</FormLabel>
+                                                            <FormControl>
+                                                                <Textarea
+                                                                    placeholder="Informações adicionais..."
+                                                                    rows={4}
+                                                                    className="resize-none"
+                                                                    {...field}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
                                             </div>
 
-                                            {/* Bloco de Parcelamento */}
-                                            <div className="space-y-3 pt-2">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                                                        <ListOrdered className="h-3.5 w-3.5" /> Condições
-                                                    </span>
-                                                    {/* Chips de Parcelas */}
-                                                    <div className="flex bg-muted/50 p-0.5 rounded-md">
-                                                        {[
-                                                            { label: '1x', value: '1' },
-                                                            { label: '2x', value: '2' },
-                                                            { label: '3x', value: '3' },
-                                                            { label: '6x', value: '6' },
-                                                            { label: '12x', value: '12' },
-                                                        ].map((opt) => (
-                                                            <button
-                                                                key={opt.value}
-                                                                type="button"
-                                                                onClick={() => form.setValue('total_parcelas', opt.value)}
-                                                                className={cn(
-                                                                    "px-2.5 py-1 text-[10px] font-medium rounded-sm transition-all",
-                                                                    totalParcelas === opt.value
-                                                                        ? "bg-background text-primary shadow-sm"
-                                                                        : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
-                                                                )}
-                                                            >
-                                                                {opt.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="total_parcelas"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-1">
-                                                                <FormLabel className="text-xs">Qtd. Parcelas</FormLabel>
-                                                                <FormControl>
-                                                                    <Input type="number" min="1" max="120" className="h-8" {...field} />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="intervalo_dias"
-                                                        render={({ field }) => (
-                                                            <FormItem className="space-y-1">
-                                                                <FormLabel className="text-xs">Intervalo</FormLabel>
-                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                            {/* COLUNA DIREITA: Finanças (Valor, Datas, Parcelas) */}
+                                            {!isEditing && (
+                                                <div className="flex flex-col h-full space-y-4">
+                                                    {/* Bloco de VALOR e DATAS - Destaque */}
+                                                    <div className="bg-muted/40 p-5 rounded-xl border border-border/50 space-y-5">
+                                                        {/* Valor Total com Input Grande */}
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="valor_total"
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-1">
+                                                                    <FormLabel className="text-xs uppercase tracking-wide text-muted-foreground font-bold">Valor Total</FormLabel>
                                                                     <FormControl>
-                                                                        <SelectTrigger className="h-8">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                    </FormControl>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="7">Semanal (7d)</SelectItem>
-                                                                        <SelectItem value="15">Quinzenal (15d)</SelectItem>
-                                                                        <SelectItem value="30">Mensal (30d)</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Tabela de Parcelas (Renderizado condicionalmente se houver parcelas) */}
-                                            {parcelasEditaveis.length > 0 && (
-                                                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col bg-background">
-                                                    <div className="bg-muted/30 px-3 py-2 border-b flex justify-between items-center">
-                                                        <span className="text-xs font-semibold text-muted-foreground">Parcelas Geradas</span>
-                                                        <span className={cn("text-xs font-bold", Math.abs(somaParcelas - parseFloat(valorTotal?.replace(',', '.') || '0')) < 0.01 ? "text-green-600" : "text-orange-500")}>
-                                                            Total: {formatCurrency(somaParcelas)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="overflow-y-auto max-h-[140px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                                                        <table className="w-full text-xs">
-                                                            <tbody className="divide-y">
-                                                                {parcelasEditaveis.map((p, index) => (
-                                                                    <tr key={p.numero} className="group hover:bg-muted/40 transition-colors">
-                                                                        <td className="px-3 py-2 w-8 text-center text-muted-foreground font-medium">{p.numero}</td>
-                                                                        <td className="px-2 py-1">
-                                                                            <input
-                                                                                type="date"
-                                                                                className="bg-transparent border-none w-full text-muted-foreground focus:text-foreground focus:outline-none p-0 h-auto font-medium"
-                                                                                value={format(p.data, 'yyyy-MM-dd')}
-                                                                                onChange={(e) => {
-                                                                                    if (e.target.value) atualizarDataParcela(index, new Date(e.target.value + 'T12:00:00'))
-                                                                                }}
-                                                                            />
-                                                                        </td>
-                                                                        <td className="px-3 py-1 text-right">
-                                                                            <input
+                                                                        <div className="relative group">
+                                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-medium group-focus-within:text-primary transition-colors">R$</span>
+                                                                            <Input
                                                                                 type="text"
-                                                                                className="bg-transparent border-none w-full text-right focus:outline-none p-0 h-auto font-medium"
-                                                                                value={p.valor.toFixed(2).replace('.', ',')}
-                                                                                onChange={(e) => {
-                                                                                    const val = parseFloat(e.target.value.replace(',', '.')) || 0
-                                                                                    atualizarValorParcela(index, val)
-                                                                                }}
+                                                                                inputMode="decimal"
+                                                                                placeholder="0,00"
+                                                                                className="pl-10 h-14 text-2xl font-bold bg-background shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
+                                                                                {...field}
                                                                             />
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
+                                                                        </div>
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+
+                                                        {/* Linha de Datas */}
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name="data_emissao"
+                                                                render={({ field }) => (
+                                                                    <FormItem className="space-y-1">
+                                                                        <FormLabel className="text-xs">Data Emissão</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input type="date" className="h-9 font-medium" {...field} />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+
+                                                            <FormField
+                                                                control={form.control}
+                                                                name="primeiro_vencimento"
+                                                                render={({ field }) => (
+                                                                    <FormItem className="space-y-1">
+                                                                        <div className="flex justify-between items-center">
+                                                                            <FormLabel className="text-xs">1º Vencimento</FormLabel>
+                                                                            <Popover>
+                                                                                <PopoverTrigger asChild>
+                                                                                    <Button variant="ghost" size="icon" className="h-4 w-4 text-muted-foreground hover:text-primary">
+                                                                                        <Calendar className="h-3 w-3" />
+                                                                                    </Button>
+                                                                                </PopoverTrigger>
+                                                                                <PopoverContent className="w-auto p-2" align="end">
+                                                                                    <div className="grid grid-cols-2 gap-1">
+                                                                                        {[
+                                                                                            { label: 'Hoje', days: 0 },
+                                                                                            { label: '+7 dias', days: 7 },
+                                                                                            { label: '+15 dias', days: 15 },
+                                                                                            { label: '+30 dias', days: 30 },
+                                                                                        ].map(opt => (
+                                                                                            <Button
+                                                                                                key={opt.label}
+                                                                                                variant="ghost"
+                                                                                                size="sm"
+                                                                                                className="text-xs justify-start"
+                                                                                                onClick={() => {
+                                                                                                    form.setValue('primeiro_vencimento', format(addDays(new Date(), opt.days), 'yyyy-MM-dd'))
+                                                                                                }}
+                                                                                            >
+                                                                                                {opt.label}
+                                                                                            </Button>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </PopoverContent>
+                                                                            </Popover>
+                                                                        </div>
+                                                                        <FormControl>
+                                                                            <Input type="date" className="h-9 font-medium" {...field} />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
                                                     </div>
+
+                                                    {/* Bloco de Parcelamento */}
+                                                    <div className="space-y-3 pt-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                                                                <ListOrdered className="h-3.5 w-3.5" /> Condições
+                                                            </span>
+                                                            {/* Chips de Parcelas */}
+                                                            <div className="flex bg-muted/50 p-0.5 rounded-md">
+                                                                {[
+                                                                    { label: '1x', value: '1' },
+                                                                    { label: '2x', value: '2' },
+                                                                    { label: '3x', value: '3' },
+                                                                    { label: '6x', value: '6' },
+                                                                    { label: '12x', value: '12' },
+                                                                ].map((opt) => (
+                                                                    <button
+                                                                        key={opt.value}
+                                                                        type="button"
+                                                                        onClick={() => form.setValue('total_parcelas', opt.value)}
+                                                                        className={cn(
+                                                                            "px-2.5 py-1 text-[10px] font-medium rounded-sm transition-all",
+                                                                            totalParcelas === opt.value
+                                                                                ? "bg-background text-primary shadow-sm"
+                                                                                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                                                        )}
+                                                                    >
+                                                                        {opt.label}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name="total_parcelas"
+                                                                render={({ field }) => (
+                                                                    <FormItem className="space-y-1">
+                                                                        <FormLabel className="text-xs">Qtd. Parcelas</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input type="number" min="1" max="120" className="h-8" {...field} />
+                                                                        </FormControl>
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                            <FormField
+                                                                control={form.control}
+                                                                name="intervalo_dias"
+                                                                render={({ field }) => (
+                                                                    <FormItem className="space-y-1">
+                                                                        <FormLabel className="text-xs">Intervalo</FormLabel>
+                                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="h-8">
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="7">Semanal (7d)</SelectItem>
+                                                                                <SelectItem value="15">Quinzenal (15d)</SelectItem>
+                                                                                <SelectItem value="30">Mensal (30d)</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Tabela de Parcelas */}
+                                                    {parcelasEditaveis.length > 0 && (
+                                                        <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col bg-background">
+                                                            <div className="bg-muted/30 px-3 py-2 border-b flex justify-between items-center">
+                                                                <span className="text-xs font-semibold text-muted-foreground">Parcelas Geradas</span>
+                                                                <span className={cn("text-xs font-bold", Math.abs(somaParcelas - parseFloat(valorTotal?.replace(',', '.') || '0')) < 0.01 ? "text-green-600" : "text-orange-500")}>
+                                                                    Total: {formatCurrency(somaParcelas)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="overflow-y-auto max-h-[140px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                                                                <table className="w-full text-xs">
+                                                                    <tbody className="divide-y">
+                                                                        {parcelasEditaveis.map((p, index) => (
+                                                                            <tr key={p.numero} className="group hover:bg-muted/40 transition-colors">
+                                                                                <td className="px-3 py-2 w-8 text-center text-muted-foreground font-medium">{p.numero}</td>
+                                                                                <td className="px-2 py-1">
+                                                                                    <input
+                                                                                        type="date"
+                                                                                        className="bg-transparent border-none w-full text-muted-foreground focus:text-foreground focus:outline-none p-0 h-auto font-medium"
+                                                                                        value={format(p.data, 'yyyy-MM-dd')}
+                                                                                        onChange={(e) => {
+                                                                                            if (e.target.value) atualizarDataParcela(index, new Date(e.target.value + 'T12:00:00'))
+                                                                                        }}
+                                                                                    />
+                                                                                </td>
+                                                                                <td className="px-3 py-1 text-right">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        className="bg-transparent border-none w-full text-right focus:outline-none p-0 h-auto font-medium"
+                                                                                        value={p.valor.toFixed(2).replace('.', ',')}
+                                                                                        onChange={(e) => {
+                                                                                            const val = parseFloat(e.target.value.replace(',', '.')) || 0
+                                                                                            atualizarValorParcela(index, val)
+                                                                                        }}
+                                                                                    />
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
-                                    )}
+                                    </TabsContent>
+
+                                    <TabsContent value="contabil" className="m-0 focus-visible:ring-0 focus-visible:outline-none">
+                                        <div className="grid gap-6">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
+                                                    <Tag className="h-4 w-4" />
+                                                    Classificação e Contabilidade
+                                                </div>
+
+                                                <div className="grid md:grid-cols-2 gap-4">
+                                                    {/* Plano de Contas */}
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="plano_conta_id"
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex flex-col">
+                                                                <FormLabel className="flex items-center gap-2">
+                                                                    <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                    Classificação Contábil
+                                                                </FormLabel>
+                                                                <Popover open={comboPlanoContas} onOpenChange={setComboPlanoContas}>
+                                                                    <PopoverTrigger asChild>
+                                                                        <FormControl>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                role="combobox"
+                                                                                className={cn(
+                                                                                    "justify-between font-normal",
+                                                                                    !field.value && "text-muted-foreground"
+                                                                                )}
+                                                                            >
+                                                                                {field.value
+                                                                                    ? contasAnaliticas.find(
+                                                                                        (c) => c.id === field.value
+                                                                                    )?.descricao
+                                                                                    : "Selecione a conta analítica..."}
+                                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                            </Button>
+                                                                        </FormControl>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent className="w-[400px] p-0" align="start">
+                                                                        <Command>
+                                                                            <CommandInput placeholder="Buscar conta..." />
+                                                                            <CommandList>
+                                                                                <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+                                                                                <CommandGroup>
+                                                                                    {contasAnaliticas.map((conta) => (
+                                                                                        <CommandItem
+                                                                                            value={conta.descricao}
+                                                                                            key={conta.id}
+                                                                                            onSelect={() => {
+                                                                                                form.setValue("plano_conta_id", conta.id)
+                                                                                                setComboPlanoContas(false)
+                                                                                            }}
+                                                                                        >
+                                                                                            <Check
+                                                                                                className={cn(
+                                                                                                    "mr-2 h-4 w-4",
+                                                                                                    conta.id === field.value
+                                                                                                        ? "opacity-100"
+                                                                                                        : "opacity-0"
+                                                                                                )}
+                                                                                            />
+                                                                                            <span className="font-mono text-muted-foreground mr-2">{conta.codigo}</span>
+                                                                                            {conta.descricao}
+                                                                                        </CommandItem>
+                                                                                    ))}
+                                                                                </CommandGroup>
+                                                                            </CommandList>
+                                                                        </Command>
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                                <FormDescription>
+                                                                    Vincule esta despesa ao plano de contas para relatórios contábeis precisos.
+                                                                </FormDescription>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </TabsContent>
                                 </div>
-                            </div>
+                            </Tabs>
 
                             <DialogFooter className="flex-col sm:flex-row gap-2 pt-4 mt-6 border-t">
                                 <Button
