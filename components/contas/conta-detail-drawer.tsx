@@ -26,12 +26,24 @@ import {
     AlertTriangle,
     TrendingUp,
     Wallet,
-    Landmark
+    Landmark,
+    Download,
+    Trash2,
+    FileDown
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { generateContaPDF } from '@/lib/reports/pdf-generator'
+import { generateContaExcel } from '@/lib/reports/excel-generator'
+import { toast } from 'sonner'
 
 interface ContaDetailDrawerProps {
     open: boolean
@@ -172,12 +184,65 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
                                     )}
                                 </div>
                             </div>
-                            {onEdit && (
-                                <Button variant="outline" size="sm" onClick={() => onEdit(conta.id)}>
-                                    <Edit className="h-4 w-4 mr-1" />
-                                    Editar
+                            <div className="flex items-center gap-2">
+                                {onEdit && (
+                                    <Button variant="outline" size="sm" onClick={() => onEdit(conta.id)}>
+                                        <Edit className="h-4 w-4 mr-1" />
+                                        Editar
+                                    </Button>
+                                )}
+
+                                {/* Export Dropdown */}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm">
+                                            <Download className="h-4 w-4 mr-1" />
+                                            Exportar
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onClick={async () => {
+                                                try {
+                                                    await generateContaPDF({ conta })
+                                                    toast.success('PDF gerado com sucesso!')
+                                                } catch (error) {
+                                                    toast.error('Erro ao gerar PDF')
+                                                }
+                                            }}
+                                        >
+                                            <FileDown className="h-4 w-4 mr-2" />
+                                            Exportar PDF
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => {
+                                                try {
+                                                    generateContaExcel({ conta })
+                                                    toast.success('Excel gerado com sucesso!')
+                                                } catch (error) {
+                                                    toast.error('Erro ao gerar Excel')
+                                                }
+                                            }}
+                                        >
+                                            <FileDown className="h-4 w-4 mr-2" />
+                                            Exportar Excel
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                {/* Delete Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => {
+                                        // TODO: Implement delete confirmation dialog
+                                        toast.error('Funcionalidade de exclusão em desenvolvimento')
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
-                            )}
+                            </div>
                         </div>
 
                         {/* Cards de Resumo */}

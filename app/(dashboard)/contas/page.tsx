@@ -363,6 +363,7 @@ export default function ContasPage() {
                 open={detailDrawerOpen}
                 onOpenChange={setDetailDrawerOpen}
                 contaId={viewingContaId}
+                onEdit={handleEdit}
             />
 
             {/* Delete Confirmation Dialog */}
