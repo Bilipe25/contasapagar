@@ -98,6 +98,7 @@ export const fornecedoresRouter = router({
             z.object({
                 nome: z.string().min(1, 'Nome é obrigatório'),
                 cnpj_cpf: z.string().optional(),
+                tipo_pessoa: z.enum(['PF', 'PJ']).optional(),
                 email: z.string().email().optional().or(z.literal('')),
                 telefone: z.string().optional(),
                 observacoes: z.string().optional(),
@@ -138,6 +139,7 @@ export const fornecedoresRouter = router({
                 id: z.string().uuid(),
                 nome: z.string().min(1, 'Nome é obrigatório'),
                 cnpj_cpf: z.string().optional(),
+                tipo_pessoa: z.enum(['PF', 'PJ']).optional(),
                 email: z.string().email().optional().or(z.literal('')),
                 telefone: z.string().optional(),
                 observacoes: z.string().optional(),

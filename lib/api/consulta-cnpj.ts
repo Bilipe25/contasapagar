@@ -40,6 +40,16 @@ export function formatarCNPJ(cnpj: string): string {
     )
 }
 
+// Formata CPF para exibição: 000.000.000-00
+export function formatarCPF(cpf: string): string {
+    const limpo = limparCNPJ(cpf) // Reutiliza a função limparCNPJ para remover formatação
+    if (limpo.length !== 11) return cpf
+    return limpo.replace(
+        /^(\d{3})(\d{3})(\d{3})(\d{2})$/,
+        '$1.$2.$3-$4'
+    )
+}
+
 // Formata CEP para exibição: 00000-000
 export function formatarCEP(cep: string): string {
     const limpo = cep.replace(/\D/g, '')
