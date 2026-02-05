@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Dialog,
     DialogContent,
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { formatCurrency } from '@/lib/utils'
 import { trpc } from '@/lib/trpc/client'
 import { toast } from 'sonner'
-import { CheckCircle2, Loader2, CreditCard, Wallet, Building, QrCode, Receipt, ArrowLeftRight, Plus } from 'lucide-react'
+import { CheckCircle2, Loader2, CreditCard, Wallet, Building, QrCode, Receipt, ArrowLeftRight, Plus, AlertTriangle, Pencil, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +25,7 @@ interface PagarParcelaDialogProps {
     parcela: {
         id: string
         numero_parcela: number
+        valor_original: number
         valor_final: number
         data_vencimento: string
     } | null
@@ -53,8 +54,24 @@ export function PagarParcelaDialog({
     const [dataPagamento, setDataPagamento] = useState(format(new Date(), 'yyyy-MM-dd'))
     const [tipoPagamento, setTipoPagamento] = useState<TipoPagamento | 'outro'>('pix')
     const [outroTipo, setOutroTipo] = useState('')
-    const [valorPago, setValorPago] = useState<string>('')
-    const [editandoValor, setEditandoValor] = useState(false)
+    const [valorJuros, setValorJuros] = useState<string>('0')
+    const [valorDesconto, setValorDesconto] = useState<string>('0')
+    const [valorOriginalEdit, setValorOriginalEdit] = useState<string>('0')
+    const [isEditingValor, setIsEditingValor] = useState(false)
+    const [mostrarDetalhes, setMostrarDetalhes] = useState(false)
+
+    useEffect(() => {
+        if (open && parcela) {
+            setValorOriginalEdit(parcela.valor_original.toString())
+            setValorJuros('0')
+            setValorDesconto('0')
+            setIsEditingValor(false)
+            setMostrarDetalhes(false)
+            setDataPagamento(format(new Date(), 'yyyy-MM-dd'))
+            setTipoPagamento('pix')
+            setOutroTipo('')
+        }
+    }, [open, parcela])
 
     const utils = trpc.useUtils()
 
@@ -67,8 +84,9 @@ export function PagarParcelaDialog({
             utils.contas.getById.invalidate(contaId)
             onOpenChange(false)
             // Reset states
-            setValorPago('')
-            setEditandoValor(false)
+            setValorJuros('0')
+            setValorDesconto('0')
+            setMostrarDetalhes(false)
             setOutroTipo('')
             setTipoPagamento('pix')
         },
@@ -80,35 +98,40 @@ export function PagarParcelaDialog({
     const handleConfirmar = () => {
         if (!parcela) return
 
-        const valorFinal = editandoValor && valorPago
-            ? parseFloat(valorPago.replace(',', '.'))
-            : parcela.valor_final
+        const jurosNum = parseFloat(valorJuros.replace(',', '.')) || 0
+        const descontoNum = parseFloat(valorDesconto.replace(',', '.')) || 0
+        const valorOriginalNum = parseFloat(valorOriginalEdit.replace(',', '.')) || 0
+        const valorFinal = valorOriginalNum + jurosNum - descontoNum
+
+        if (valorFinal < 0) {
+            toast.error('Valor inválido', {
+                description: 'O desconto não pode ser maior que o valor original + juros'
+            })
+            return
+        }
 
         marcarPago.mutate({
             id: parcela.id,
             data_pagamento: new Date(dataPagamento).toISOString(),
             tipo_pagamento: tipoPagamento === 'outro' ? undefined : tipoPagamento,
-            valor_final: valorFinal,
+            valor_juros: jurosNum,
+            valor_desconto: descontoNum,
+            valor_original: valorOriginalNum !== parcela.valor_original ? valorOriginalNum : undefined,
         })
     }
 
     // Reset when dialog opens
     const handleOpenChange = (newOpen: boolean) => {
-        if (newOpen && parcela) {
-            setValorPago(parcela.valor_final.toString())
-            setEditandoValor(false)
-            setDataPagamento(format(new Date(), 'yyyy-MM-dd'))
-            setTipoPagamento('pix')
-            setOutroTipo('')
-        }
         onOpenChange(newOpen)
     }
 
     if (!parcela) return null
 
-    const valorExibir = editandoValor && valorPago
-        ? parseFloat(valorPago.replace(',', '.')) || 0
-        : parcela.valor_final
+    // Calcular valores
+    const jurosNum = parseFloat(valorJuros.replace(',', '.')) || 0
+    const descontoNum = parseFloat(valorDesconto.replace(',', '.')) || 0
+    const valorOriginalNum = parseFloat(valorOriginalEdit.replace(',', '.')) || 0
+    const valorFinal = valorOriginalNum + jurosNum - descontoNum
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -125,40 +148,146 @@ export function PagarParcelaDialog({
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                    {/* Valor */}
-                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg space-y-2">
+                    {/* Valor Section - Compact & Professional */}
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg space-y-2">
+                        {/* Header with toggle */}
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Valor a pagar</span>
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Valores
+                            </span>
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 text-xs"
-                                onClick={() => setEditandoValor(!editandoValor)}
+                                onClick={() => setMostrarDetalhes(!mostrarDetalhes)}
                             >
-                                {editandoValor ? 'Usar original' : 'Editar valor'}
+                                {mostrarDetalhes ? 'Ocultar detalhes' : 'Adicionar juros/desconto'}
                             </Button>
                         </div>
-                        {editandoValor ? (
-                            <div className="flex items-center gap-2">
-                                <span className="text-lg font-bold text-emerald-600">R$</span>
-                                <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={valorPago}
-                                    onChange={(e) => setValorPago(e.target.value)}
-                                    placeholder={parcela.valor_final.toFixed(2)}
-                                    className="text-xl font-bold h-12 bg-white dark:bg-background"
-                                />
-                            </div>
-                        ) : (
-                            <span className="text-2xl font-bold text-emerald-600 block">
-                                {formatCurrency(valorExibir)}
+
+                        {/* Valor Final Display */}
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-xs text-muted-foreground">Total a pagar:</span>
+                            <span className={cn(
+                                "text-2xl font-bold",
+                                valorFinal < 0 ? "text-red-600" : "text-emerald-600"
+                            )}>
+                                {formatCurrency(valorFinal)}
                             </span>
-                        )}
-                        {editandoValor && valorExibir !== parcela.valor_final && (
-                            <p className="text-xs text-muted-foreground">
-                                Valor original: {formatCurrency(parcela.valor_final)}
-                            </p>
+                        </div>
+
+                        {/* Detalhes Expandíveis */}
+                        {mostrarDetalhes && (
+                            <div className="space-y-2 pt-2 border-t">
+                                {/* Valor Original */}
+                                <div className="flex items-center justify-between text-sm h-9">
+                                    <span className="text-muted-foreground">Valor original</span>
+                                    {isEditingValor ? (
+                                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-300">
+                                            <Input
+                                                type="number"
+                                                value={valorOriginalEdit}
+                                                onChange={(e) => setValorOriginalEdit(e.target.value)}
+                                                className="h-7 w-24 text-right pr-2 text-sm"
+                                                autoFocus
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                                                onClick={() => setIsEditingValor(false)}
+                                            >
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 group">
+                                            <span className="font-medium">{formatCurrency(parseFloat(valorOriginalEdit.replace(',', '.')) || 0)}</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-muted-foreground opacity-50 group-hover:opacity-100 hover:text-foreground hover:bg-transparent transition-all"
+                                                onClick={() => setIsEditingValor(true)}
+                                                title="Editar valor da parcela"
+                                            >
+                                                <Pencil className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Juros Input */}
+                                <div className="space-y-1">
+                                    <Label htmlFor="juros" className="text-xs">Juros (+)</Label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">R$</span>
+                                        <Input
+                                            id="juros"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={valorJuros}
+                                            onChange={(e) => setValorJuros(e.target.value)}
+                                            placeholder="0,00"
+                                            className="h-8 text-sm"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Desconto Input */}
+                                <div className="space-y-1">
+                                    <Label htmlFor="desconto" className="text-xs">Desconto (-)</Label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">R$</span>
+                                        <Input
+                                            id="desconto"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={valorDesconto}
+                                            onChange={(e) => setValorDesconto(e.target.value)}
+                                            placeholder="0,00"
+                                            className="h-8 text-sm"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Calculation Display */}
+                                {(jurosNum > 0 || descontoNum > 0) && (
+                                    <div className="pt-2 border-t space-y-1 text-xs">
+                                        <div className="flex justify-between text-muted-foreground">
+                                            <span>Valor original</span>
+                                            <span>{formatCurrency(parcela.valor_original)}</span>
+                                        </div>
+                                        {jurosNum > 0 && (
+                                            <div className="flex justify-between text-orange-600 dark:text-orange-400">
+                                                <span>+ Juros</span>
+                                                <span>{formatCurrency(jurosNum)}</span>
+                                            </div>
+                                        )}
+                                        {descontoNum > 0 && (
+                                            <div className="flex justify-between text-emerald-600">
+                                                <span>- Desconto</span>
+                                                <span>{formatCurrency(descontoNum)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between font-bold pt-1 border-t">
+                                            <span>Total</span>
+                                            <span className={cn(
+                                                valorFinal < 0 ? 'text-red-600' : 'text-emerald-600'
+                                            )}>
+                                                {formatCurrency(valorFinal)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Error Message */}
+                                {valorFinal < 0 && (
+                                    <p className="text-xs text-red-600 flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        O desconto não pode ser maior que o valor original + juros
+                                    </p>
+                                )}
+                            </div>
                         )}
                     </div>
 

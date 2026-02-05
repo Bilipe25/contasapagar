@@ -15,6 +15,8 @@ interface GeneratePDFParams {
         totalVencidas: number
         totalPago: number
         quantidadePagas: number
+        totalJuros?: number
+        totalDescontos?: number
     }
     periodo: string
 }
@@ -87,35 +89,73 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
                 margin: [0, 0, 0, 20],
             },
             {
-                text: 'Resumo',
+                text: 'Resumo Financeiro',
                 style: 'tableHeader',
-                margin: [0, 10, 0, 5],
+                margin: [0, 10, 0, 5] as [number, number, number, number],
             },
             {
                 table: {
-                    widths: ['*', '*', '*', '*'],
+                    widths: ['*', '*', '*', '*', '*', '*'],
                     body: [
                         [
-                            { text: 'Total a Pagar', bold: true },
-                            { text: 'Vencidas', bold: true },
-                            { text: 'Total Pago', bold: true },
-                            { text: 'Qtd. Pagas', bold: true },
+                            { text: 'Total a Pagar', bold: true, fontSize: 9 },
+                            { text: 'Vencidas', bold: true, fontSize: 9 },
+                            { text: 'Total Pago', bold: true, fontSize: 9 },
+                            { text: 'Juros', bold: true, fontSize: 9, color: COLORS.red },
+                            { text: 'Descontos', bold: true, fontSize: 9, color: COLORS.green },
+                            { text: 'Qtd. Pagas', bold: true, fontSize: 9 },
                         ],
                         [
-                            formatCurrency(stats.totalAPagar),
-                            stats.totalVencidas.toString(),
-                            formatCurrency(stats.totalPago),
-                            stats.quantidadePagas.toString(),
+                            { text: formatCurrency(stats.totalAPagar), fontSize: 9 },
+                            { text: stats.totalVencidas.toString(), fontSize: 9 },
+                            { text: formatCurrency(stats.totalPago), fontSize: 9, bold: true },
+                            { text: formatCurrency(stats.totalJuros || 0), fontSize: 9, color: COLORS.red },
+                            { text: formatCurrency(stats.totalDescontos || 0), fontSize: 9, color: COLORS.green },
+                            { text: stats.quantidadePagas.toString(), fontSize: 9 },
                         ],
                     ],
                 },
                 layout: 'lightHorizontalLines',
-                margin: [0, 0, 0, 20],
+                margin: [0, 0, 0, 10] as [number, number, number, number],
             },
+            // Breakdown section (only if there are juros or descontos)
+            ...((stats.totalJuros || 0) > 0 || (stats.totalDescontos || 0) > 0 ? [
+                {
+                    text: 'Composição do Valor Pago',
+                    style: 'sectionHeader',
+                    margin: [0, 5, 0, 5] as [number, number, number, number],
+                    fontSize: 10,
+                },
+                {
+                    table: {
+                        widths: ['*', 'auto'],
+                        body: [
+                            [
+                                { text: 'Valor Original das Parcelas Pagas', fontSize: 9 },
+                                { text: formatCurrency((stats.totalPago || 0) - (stats.totalJuros || 0) + (stats.totalDescontos || 0)), fontSize: 9 }
+                            ],
+                            [
+                                { text: '+ Juros Aplicados', fontSize: 9, color: COLORS.red },
+                                { text: formatCurrency(stats.totalJuros || 0), fontSize: 9, color: COLORS.red }
+                            ],
+                            [
+                                { text: '- Descontos Concedidos', fontSize: 9, color: COLORS.green },
+                                { text: formatCurrency(stats.totalDescontos || 0), fontSize: 9, color: COLORS.green }
+                            ],
+                            [
+                                { text: '= Total Pago', bold: true, fontSize: 9 },
+                                { text: formatCurrency(stats.totalPago), bold: true, fontSize: 9 }
+                            ],
+                        ],
+                    },
+                    layout: 'noBorders',
+                    margin: [0, 0, 0, 20] as [number, number, number, number],
+                }
+            ] : []),
             {
                 text: 'Detalhamento de Contas',
                 style: 'tableHeader',
-                margin: [0, 10, 0, 5],
+                margin: [0, 10, 0, 5] as [number, number, number, number],
             },
             {
                 table: {
@@ -145,7 +185,7 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
             {
                 text: `Gerado em ${new Date().toLocaleString('pt-BR')}`,
                 alignment: 'center',
-                margin: [0, 20, 0, 0],
+                margin: [0, 20, 0, 0] as [number, number, number, number],
                 fontSize: 8,
                 color: '#666',
             },

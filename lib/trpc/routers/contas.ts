@@ -26,7 +26,7 @@ export const contasRouter = router({
                     empresas(id, razao_social, nome_fantasia, cnpj),
                     bancos(id, nome),
                     plano_contas(id, codigo, descricao),
-                    ${(input?.dataInicio || input?.dataFim) ? 'parcelas!inner' : 'parcelas'}(id, numero_parcela, valor_final, status, data_vencimento, data_pagamento)
+                    ${(input?.dataInicio || input?.dataFim) ? 'parcelas!inner' : 'parcelas'}(id, numero_parcela, valor_original, valor_juros, valor_desconto, valor_final, status, data_vencimento, data_pagamento)
                 `)
                 .eq('user_id', ctx.user.id)
                 .order('created_at', { ascending: false })
@@ -72,6 +72,9 @@ export const contasRouter = router({
                 interface ParcelaStats {
                     id: string;
                     status: string;
+                    valor_original: number;
+                    valor_juros: number;
+                    valor_desconto: number;
                     valor_final: number;
                     data_vencimento: string;
                     numero_parcela: number;
@@ -86,6 +89,18 @@ export const contasRouter = router({
                 const valorPendente = parcelas
                     .filter((p: ParcelaStats) => p.status !== 'pago' && p.status !== 'cancelado')
                     .reduce((sum: number, p: ParcelaStats) => sum + (p.valor_final || 0), 0)
+
+                // Calcular totais de juros e descontos (apenas parcelas pagas)
+                const totalJuros = parcelas
+                    .filter((p: ParcelaStats) => p.status === 'pago')
+                    .reduce((sum: number, p: ParcelaStats) => sum + (p.valor_juros || 0), 0)
+                const totalDescontos = parcelas
+                    .filter((p: ParcelaStats) => p.status === 'pago')
+                    .reduce((sum: number, p: ParcelaStats) => sum + (p.valor_desconto || 0), 0)
+                const valorOriginalPago = parcelas
+                    .filter((p: ParcelaStats) => p.status === 'pago')
+                    .reduce((sum: number, p: ParcelaStats) => sum + (p.valor_original || 0), 0)
+
                 const proximaParcelaVencimento = parcelas
                     .filter((p: ParcelaStats) => p.status === 'pendente' || p.status === 'atrasado')
                     .sort((a: ParcelaStats, b: ParcelaStats) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())[0]
@@ -110,6 +125,9 @@ export const contasRouter = router({
                     valor_pago: valorPago,
                     valor_pendente: valorPendente,
                     proxima_parcela: proximaParcelaVencimento,
+                    total_juros: totalJuros,
+                    total_descontos: totalDescontos,
+                    valor_original_pago: valorOriginalPago,
                 }
             }) || []
         }),

@@ -93,7 +93,14 @@ export function generateContaExcel({ conta }: GenerateExcelParams) {
 
 interface GenerateReportParams {
     contas: any[]
-    stats: any
+    stats: {
+        totalAPagar: number
+        totalVencidas: number
+        totalPago: number
+        quantidadePagas: number
+        totalJuros?: number
+        totalDescontos?: number
+    }
     porTipoDespesa: any[]
 }
 
@@ -107,7 +114,15 @@ export function generateExcel({ contas, stats, porTipoDespesa }: GenerateReportP
         ['Total a Pagar', formatCurrency(stats.totalAPagar)],
         ['Total Vencido', formatCurrency(stats.totalVencidas)],
         ['Total Pago', formatCurrency(stats.totalPago)],
+        ['Total Juros', formatCurrency(stats.totalJuros || 0)],
+        ['Total Descontos', formatCurrency(stats.totalDescontos || 0)],
         ['Quantidade de Contas Pagas', stats.quantidadePagas],
+        [''],
+        ['COMPOSIÇÃO DO VALOR PAGO'],
+        ['Valor Original', formatCurrency((stats.totalPago || 0) - (stats.totalJuros || 0) + (stats.totalDescontos || 0))],
+        ['+ Juros', formatCurrency(stats.totalJuros || 0)],
+        ['- Descontos', formatCurrency(stats.totalDescontos || 0)],
+        ['= Total Pago', formatCurrency(stats.totalPago)],
         [''],
         ['TOP CATEGORIAS'],
         ['Categoria', 'Valor Total', 'Quantidade'],

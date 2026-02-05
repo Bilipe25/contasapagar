@@ -29,6 +29,7 @@ export function UpcomingBills({ contas }: UpcomingBillsProps) {
     const [parcelaSelecionada, setParcelaSelecionada] = useState<{
         id: string
         numero_parcela: number
+        valor_original: number
         valor_final: number
         data_vencimento: string
     } | null>(null)
@@ -40,6 +41,7 @@ export function UpcomingBills({ contas }: UpcomingBillsProps) {
         setParcelaSelecionada({
             id: conta.parcela_id,
             numero_parcela: conta.numero_parcela,
+            valor_original: conta.valor_final, // Usar valor_final como original por enquanto
             valor_final: conta.valor_final,
             data_vencimento: conta.data_vencimento,
         })

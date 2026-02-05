@@ -23,6 +23,9 @@ export const dashboardRouter = router({
                     .from('parcelas')
                     .select(`
                         id,
+                        valor_original,
+                        valor_juros,
+                        valor_desconto,
                         valor_final,
                         status,
                         data_vencimento,
@@ -61,11 +64,17 @@ export const dashboardRouter = router({
                 const totalPago = parcelasPagas.reduce((sum, p) => sum + (p.valor_final || 0), 0)
                 const quantidadePagas = parcelasPagas.length
 
+                // Calcular totais de juros e descontos
+                const totalJuros = parcelasPagas.reduce((sum, p) => sum + (p.valor_juros || 0), 0)
+                const totalDescontos = parcelasPagas.reduce((sum, p) => sum + (p.valor_desconto || 0), 0)
+
                 return {
                     totalAPagar,
                     totalVencidas,
                     totalPago,
                     quantidadePagas,
+                    totalJuros,
+                    totalDescontos,
                 }
             } catch (error) {
                 if (error instanceof TRPCError) throw error

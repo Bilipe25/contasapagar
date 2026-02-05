@@ -137,8 +137,9 @@ export const parcelasRouter = router({
                 id: z.string(),
                 data_pagamento: z.string(),
                 tipo_pagamento: z.enum(['dinheiro', 'pix', 'cartao_credito', 'cartao_debito', 'transferencia', 'boleto']).optional(),
-                valor_juros: z.number().optional(),
-                valor_final: z.number().optional(), // Valor editado pelo usuário
+                valor_juros: z.number().min(0).optional(),
+                valor_desconto: z.number().min(0).optional(),
+                valor_original: z.number().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -157,29 +158,44 @@ export const parcelasRouter = router({
                 })
             }
 
+            // Calcular valor final
+            const valorOriginal = input.valor_original ?? parcela.valor_original
+            const valorJuros = input.valor_juros ?? 0
+            const valorDesconto = input.valor_desconto ?? 0
+            const valorFinal = valorOriginal + valorJuros - valorDesconto
+
+            // Validar que o valor final é positivo
+            if (valorFinal < 0) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'O desconto não pode ser maior que o valor original + juros',
+                })
+            }
+
             type UpdatePagoPayload = {
                 status: string;
                 data_pagamento: string;
                 tipo_pagamento?: string;
-                valor_final?: number;
-                valor_juros?: number;
+                valor_juros: number;
+                valor_desconto: number;
+                valor_original?: number;
+                valor_final: number;
             }
 
             const updateData: UpdatePagoPayload = {
                 status: 'pago',
                 data_pagamento: input.data_pagamento,
+                valor_juros: valorJuros,
+                valor_desconto: valorDesconto,
+                valor_final: valorFinal,
+            }
+
+            if (input.valor_original !== undefined) {
+                updateData.valor_original = input.valor_original
             }
 
             if (input.tipo_pagamento) {
                 updateData.tipo_pagamento = input.tipo_pagamento
-            }
-
-            // Se o usuário editou o valor final
-            if (input.valor_final !== undefined) {
-                updateData.valor_final = input.valor_final
-            } else if (input.valor_juros !== undefined) {
-                updateData.valor_juros = input.valor_juros
-                updateData.valor_final = parcela.valor_original + input.valor_juros
             }
 
             const { data, error } = await ctx.supabase
