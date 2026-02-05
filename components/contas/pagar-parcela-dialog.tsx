@@ -25,7 +25,7 @@ interface PagarParcelaDialogProps {
     parcela: {
         id: string
         numero_parcela: number
-        valor_original: number
+        valor_original?: number | null
         valor_final: number
         data_vencimento: string
     } | null
@@ -62,7 +62,7 @@ export function PagarParcelaDialog({
 
     useEffect(() => {
         if (open && parcela) {
-            setValorOriginalEdit(parcela.valor_original.toString())
+            setValorOriginalEdit((parcela.valor_original || 0).toString())
             setValorJuros('0')
             setValorDesconto('0')
             setIsEditingValor(false)
@@ -255,7 +255,7 @@ export function PagarParcelaDialog({
                                     <div className="pt-2 border-t space-y-1 text-xs">
                                         <div className="flex justify-between text-muted-foreground">
                                             <span>Valor original</span>
-                                            <span>{formatCurrency(parcela.valor_original)}</span>
+                                            <span>{formatCurrency(parcela.valor_original || 0)}</span>
                                         </div>
                                         {jurosNum > 0 && (
                                             <div className="flex justify-between text-orange-600 dark:text-orange-400">
