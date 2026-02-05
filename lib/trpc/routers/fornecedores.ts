@@ -112,8 +112,8 @@ export const fornecedoresRouter = router({
                 // Campos adicionais
                 inscricao_estadual: z.string().optional(),
                 situacao_cadastral: z.string().optional(),
-                empresa_id: z.string().uuid().optional().nullable(),
-                tipo_despesa_id: z.string().uuid().optional().nullable(),
+                empresa_id: z.string().uuid().optional().nullable().or(z.literal('').transform(() => null)),
+                tipo_despesa_id: z.string().uuid().optional().nullable().or(z.literal('').transform(() => null)),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -152,8 +152,8 @@ export const fornecedoresRouter = router({
                 // Campos adicionais
                 inscricao_estadual: z.string().optional(),
                 situacao_cadastral: z.string().optional(),
-                empresa_id: z.string().uuid().optional().nullable(),
-                tipo_despesa_id: z.string().uuid().optional().nullable(),
+                empresa_id: z.string().uuid().optional().nullable().or(z.literal('').transform(() => null)),
+                tipo_despesa_id: z.string().uuid().optional().nullable().or(z.literal('').transform(() => null)),
             })
         )
         .mutation(async ({ ctx, input }) => {

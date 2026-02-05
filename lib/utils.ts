@@ -16,9 +16,10 @@ export function formatCurrency(value: number): string {
 // Datas no formato YYYY-MM-DD são tratadas como UTC pelo JavaScript
 // Adicionamos T12:00:00 para garantir que a data fique correta em qualquer fuso
 export function parseLocalDate(date: string | Date): Date {
+  if (!date) return new Date() // Fallback de segurança
   if (date instanceof Date) return date
   // Se já tem 'T', é uma data ISO completa
-  if (date.includes('T')) {
+  if (typeof date === 'string' && date.includes('T')) {
     return new Date(date)
   }
   // Se é só YYYY-MM-DD, adiciona meio-dia para evitar problema de fuso

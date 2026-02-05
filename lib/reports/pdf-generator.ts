@@ -392,3 +392,298 @@ export async function generateAnnualPDF({ meses, totais, ano }: GenerateAnnualPD
 
     pdfMake.createPdf(docDefinition).download(`relatorio-anual-${ano}.pdf`)
 }
+
+interface GenerateContaPDFParams {
+    conta: any
+}
+
+export async function generateContaPDF({ conta }: GenerateContaPDFParams) {
+    const pdfMake = await initPdfMake()
+
+    // 1. Correção: Acessar 'empresas' (plural) conforme retorno do Supabase
+    const empresaNome = conta.empresas?.nome_fantasia || conta.empresas?.razao_social || 'Minha Empresa'
+    const empresaCNPJ = conta.empresas?.cnpj || ''
+
+    // Fornecedor
+    const fornecedorNome = conta.fornecedores?.nome || conta.fornecedores?.razao_social || 'Fornecedor não informado'
+
+    // Status
+    const isPaid = conta.status === 'quitada' || conta.status === 'pago'
+    const docStatus = isPaid ? 'PAGO' : (isVencido(conta.data_vencimento) ? 'VENCIDO' : 'PENDENTE')
+    const statusColor = isPaid ? COLORS.green : (isVencido(conta.data_vencimento) ? COLORS.red : COLORS.blue)
+
+    // Lógica para Data de Vencimento Inteligente
+    let headerVencimento = 'VENCIMENTO'
+    let dataVencimentoDisplay = conta.data_vencimento
+
+    // Se tiver parcelas carregadas
+    if (conta.parcelas && conta.parcelas.length > 0 && !isPaid) {
+        // Ordena por data
+        const parcelasPendentes = conta.parcelas
+            .filter((p: any) => p.status !== 'pago' && p.status !== 'cancelado')
+            .sort((a: any, b: any) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
+
+        if (parcelasPendentes.length > 0) {
+            headerVencimento = 'PRÓXIMO VENCIMENTO'
+            dataVencimentoDisplay = parcelasPendentes[0].data_vencimento
+        } else {
+            // Se não tem pendentes, pega a última data
+            const ultimas = conta.parcelas.sort((a: any, b: any) => new Date(b.data_vencimento).getTime() - new Date(a.data_vencimento).getTime())
+            dataVencimentoDisplay = ultimas[0]?.data_vencimento || conta.data_vencimento
+        }
+    } else if (conta.proxima_parcela && !isPaid) {
+        // Se veio do objeto 'list' que tem 'proxima_parcela'
+        headerVencimento = 'PRÓXIMO VENCIMENTO'
+        dataVencimentoDisplay = conta.proxima_parcela.data_vencimento
+    }
+
+
+    // Definição das parcelas (Tabela)
+    const parcelasSection = []
+    if (conta.parcelas && conta.parcelas.length > 0) {
+        parcelasSection.push(
+            { text: 'DETALHAMENTO DE PARCELAS', style: 'sectionHeader', margin: [0, 20, 0, 8] as [number, number, number, number] },
+            {
+                table: {
+                    headerRows: 1,
+                    widths: [30, 80, 80, '*', 90], // Larguras ajustadas
+                    body: [
+                        [
+                            { text: '#', style: 'tableHeaderSmall', alignment: 'center' },
+                            { text: 'Vencimento', style: 'tableHeaderSmall' },
+                            { text: 'Status', style: 'tableHeaderSmall' },
+                            { text: 'Pagamento', style: 'tableHeaderSmall' },
+                            { text: 'Valor', style: 'tableHeaderSmall', alignment: 'right' },
+                        ],
+                        ...conta.parcelas.map((p: any) => [
+                            { text: p.numero_parcela ? `${p.numero_parcela}` : '-', style: 'tableCellSmall', alignment: 'center' },
+                            { text: formatDate(p.data_vencimento), style: 'tableCellSmall' },
+                            {
+                                text: p.status.toUpperCase(),
+                                style: 'tableCellSmall',
+                                color: p.status === 'pago' ? COLORS.green : (p.status === 'atrasado' ? COLORS.red : COLORS.primary)
+                            },
+                            { text: p.data_pagamento ? formatDate(p.data_pagamento) : '-', style: 'tableCellSmall' },
+                            { text: formatCurrency(p.valor_final || p.valor), style: 'tableCellSmall', alignment: 'right' },
+                        ])
+                    ]
+                },
+                layout: {
+                    hLineWidth: (i: number) => 1,
+                    vLineWidth: (i: number) => 0,
+                    hLineColor: (i: number) => i === 0 || i === 1 ? '#e5e7eb' : '#f3f4f6',
+                    fillColor: (i: number) => i % 2 === 0 ? null : '#fafafa' // Zebra striping sutil
+                }
+            }
+        )
+    }
+
+    const docDefinition: TDocumentDefinitions = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        content: [
+            // Header Topo
+            {
+                columns: [
+                    {
+                        width: '*',
+                        stack: [
+                            { text: 'DEMONSTRATIVO DE CONTA A PAGAR', style: 'header' },
+                            {
+                                text: [
+                                    { text: 'Emitido em: ', color: COLORS.gray },
+                                    { text: formatDate(new Date()), bold: true }
+                                ],
+                                style: 'subHeaderSmall'
+                            }
+                        ]
+                    },
+                    {
+                        width: 'auto',
+                        table: {
+                            body: [
+                                [{ text: docStatus, style: 'statusBadge', fillColor: statusColor, color: 'white' }]
+                            ]
+                        },
+                        layout: 'noBorders'
+                    }
+                ],
+                margin: [0, 0, 0, 15]
+            },
+
+            // Linha divisória
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: COLORS.primary }] },
+
+            // Info Blocks (Pagador / Beneficiário)
+            {
+                columns: [
+                    {
+                        width: '50%',
+                        stack: [
+                            { text: 'PAGADOR (EMPRESA)', style: 'label' },
+                            { text: empresaNome, style: 'value' },
+                            { text: empresaCNPJ ? `CNPJ: ${empresaCNPJ}` : 'CNPJ não informado', style: 'subValue' },
+                            { text: conta.empresas?.email || '', style: 'subValue' }
+                        ],
+                        margin: [0, 15, 10, 0]
+                    },
+                    {
+                        width: '50%',
+                        stack: [
+                            { text: 'BENEFICIÁRIO (FORNECEDOR)', style: 'label' },
+                            { text: fornecedorNome, style: 'value' },
+                            { text: conta.fornecedores?.cnpj_cpf ? `CPF/CNPJ: ${conta.fornecedores.cnpj_cpf}` : 'Documento não informado', style: 'subValue' },
+                            { text: conta.fornecedores?.email || '', style: 'subValue' }
+                        ],
+                        margin: [10, 15, 0, 0]
+                    }
+                ]
+            },
+
+            // Detalhes da Conta (Grid Compacto e limpo)
+            { text: 'DADOS DA CONTA', style: 'sectionHeader', margin: [0, 25, 0, 8] },
+            {
+                table: {
+                    widths: ['33%', '33%', '33%'],
+                    body: [
+                        [
+                            { text: headerVencimento, style: 'fieldLabel' },
+                            { text: 'BANCO / PORTADOR', style: 'fieldLabel' },
+                            { text: 'CATEGORIA', style: 'fieldLabel' },
+                        ],
+                        [
+                            { text: dataVencimentoDisplay ? formatDate(dataVencimentoDisplay) : '-', style: 'fieldValueHighlight' },
+                            { text: conta.bancos?.nome || '-', style: 'fieldValue' },
+                            { text: conta.tipos_despesa?.nome || '-', style: 'fieldValue' },
+                        ],
+                        [
+                            { text: 'COMPETÊNCIA', style: 'fieldLabel', margin: [0, 10, 0, 2] },
+                            { text: 'DATA EMISSÃO', style: 'fieldLabel', margin: [0, 10, 0, 2] },
+                            { text: '', style: 'fieldLabel', margin: [0, 10, 0, 2] },
+                        ],
+                        [
+                            { text: conta.data_competencia ? formatDate(conta.data_competencia) : '-', style: 'fieldValue' },
+                            { text: formatDate(conta.data_emissao), style: 'fieldValue' },
+                            { text: '', style: 'fieldValue' },
+                        ]
+                    ]
+                },
+                layout: 'noBorders',
+                margin: [0, 0, 0, 10]
+            },
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#e5e7eb' }] },
+
+            // Descrição e Observações
+            {
+                margin: [0, 15, 0, 0],
+                table: {
+                    widths: ['100%'],
+                    body: [
+                        [{ text: 'DESCRIÇÃO', style: 'fieldLabel' }],
+                        [{ text: conta.descricao, style: 'fieldValue', margin: [0, 0, 0, 10] }],
+                        [{ text: 'OBSERVAÇÕES', style: 'fieldLabel' }],
+                        [{ text: conta.observacoes || 'Nenhuma observação registrada.', style: 'fieldValueSmall' }]
+                    ]
+                },
+                layout: 'noBorders'
+            },
+
+            // Parcelas (Se houver)
+            ...parcelasSection,
+
+            // Resumo Financeiro
+            { text: 'RESUMO FINANCEIRO', style: 'sectionHeader', margin: [0, 25, 0, 8] },
+            {
+                columns: [
+                    { width: '*', text: '' }, // Espaço vazio para alinhar à direita
+                    {
+                        width: 'auto',
+                        table: {
+                            widths: [140, 110],
+                            body: [
+                                [
+                                    { text: 'Valor Original', style: 'moneyLabel' },
+                                    { text: formatCurrency(conta.valor_total || conta.valor), style: 'moneyValue' }
+                                ],
+                                [
+                                    { text: 'Descontos', style: 'moneyLabel' },
+                                    { text: '-', style: 'moneyValueGray' }
+                                ],
+                                [
+                                    { text: 'Juros / Multa', style: 'moneyLabel' },
+                                    { text: '-', style: 'moneyValueGray' }
+                                ],
+                                // Totais com destaque
+                                [
+                                    { text: 'VALOR PAGO', style: 'moneyLabel', color: isPaid ? COLORS.green : COLORS.gray },
+                                    { text: formatCurrency(conta.valor_pago || 0), style: 'moneyValue', color: isPaid ? COLORS.green : COLORS.gray }
+                                ],
+                                [
+                                    { text: 'TOTAL A PAGAR', style: 'totalLabel', fillColor: '#f8fafc' },
+                                    { text: formatCurrency(conta.valor_final || conta.valor_total || conta.valor), style: 'totalValue', fillColor: '#f8fafc' }
+                                ]
+                            ]
+                        },
+                        layout: {
+                            hLineWidth: (i) => i === 4 ? 1 : 0,
+                            vLineWidth: () => 0,
+                            hLineColor: () => '#e2e8f0'
+                        }
+                    }
+                ]
+            },
+
+            // Footer
+            {
+                text: [
+                    'Este documento é apenas um demonstrativo de controle interno.\n',
+                    'Gerado automaticamente pelo Sistema de Controle de Contas.'
+                ],
+                style: 'footer',
+                alignment: 'center',
+                margin: [0, 60, 0, 0]
+            }
+        ],
+        styles: {
+            header: { fontSize: 16, bold: true, color: COLORS.primary },
+            subHeaderSmall: { fontSize: 9, color: COLORS.gray, margin: [0, 2, 0, 0] },
+            statusBadge: { fontSize: 10, bold: true, alignment: 'center', margin: [10, 3, 10, 3] },
+
+            label: { fontSize: 8, color: COLORS.gray, bold: true, margin: [0, 0, 0, 2] },
+            value: { fontSize: 10, color: COLORS.primary, bold: true },
+            subValue: { fontSize: 9, color: COLORS.gray },
+
+            sectionHeader: { fontSize: 11, bold: true, color: COLORS.accent, margin: [0, 0, 0, 0] },
+
+            fieldLabel: { fontSize: 8, color: COLORS.gray, bold: true, margin: [0, 2, 0, 2], opacity: 0.8 },
+            fieldValue: { fontSize: 10, color: COLORS.primary, margin: [0, 0, 0, 5] },
+            fieldValueHighlight: { fontSize: 10, color: COLORS.primary, bold: true, margin: [0, 0, 0, 5] },
+            fieldValueSmall: { fontSize: 9, color: COLORS.gray, italics: true },
+
+            tableHeaderSmall: { fontSize: 8, bold: true, color: COLORS.gray, fillColor: '#f1f5f9', margin: [0, 6, 0, 6] },
+            tableCellSmall: { fontSize: 9, color: COLORS.primary, margin: [0, 6, 0, 6] },
+
+            moneyLabel: { fontSize: 9, color: COLORS.gray, alignment: 'right', margin: [0, 4, 10, 4] },
+            moneyValue: { fontSize: 10, color: COLORS.primary, alignment: 'right', bold: true, margin: [0, 4, 0, 4] },
+            moneyValueGray: { fontSize: 10, color: '#94a3b8', alignment: 'right', margin: [0, 4, 0, 4] },
+
+            totalLabel: { fontSize: 11, color: COLORS.primary, alignment: 'right', bold: true, margin: [0, 10, 10, 10] },
+            totalValue: { fontSize: 13, color: COLORS.primary, alignment: 'right', bold: true, margin: [0, 10, 0, 10] },
+
+            footer: { fontSize: 7, color: '#94a3b8', italics: true, lineHeight: 1.3 },
+        },
+        defaultStyle: {
+            font: 'Roboto'
+        }
+    }
+
+    pdfMake.createPdf(docDefinition).download(`conta-${conta.id.slice(0, 8)}.pdf`)
+}
+
+function isVencido(dataStr: string): boolean {
+    if (!dataStr) return false
+    const venc = new Date(dataStr)
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    return venc < hoje
+}
