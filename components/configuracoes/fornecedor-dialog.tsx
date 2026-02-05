@@ -54,6 +54,7 @@ const schema = z.object({
     inscricao_estadual: z.string().optional(),
     situacao_cadastral: z.string().optional(),
     empresa_id: z.string().optional(),
+    tipo_despesa_id: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -69,6 +70,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
     const isEditing = !!fornecedorId
 
     const { data: empresas } = trpc.empresas.list.useQuery()
+    const { data: categorias } = trpc.tiposDespesa.list.useQuery()
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -88,6 +90,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
             inscricao_estadual: '',
             situacao_cadastral: '',
             empresa_id: '',
+            tipo_despesa_id: '',
         },
     })
 
@@ -116,6 +119,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 inscricao_estadual: fornecedor.inscricao_estadual || '',
                 situacao_cadastral: fornecedor.situacao_cadastral || '',
                 empresa_id: fornecedor.empresa_id || '',
+                tipo_despesa_id: fornecedor.tipo_despesa_id || '',
             })
         } else if (!isEditing) {
             form.reset({
@@ -134,6 +138,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                 inscricao_estadual: '',
                 situacao_cadastral: '',
                 empresa_id: '',
+                tipo_despesa_id: '',
             })
         }
     }, [fornecedor, isEditing, form])
@@ -553,6 +558,33 @@ export function FornecedorDialog({ open, onOpenChange, fornecedorId }: Fornecedo
                                             {...field}
                                         />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Categoria Padrão */}
+                        <FormField
+                            control={form.control}
+                            name="tipo_despesa_id"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Categoria Padrão</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecione a categoria padrão..." />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="none_value">Nenhuma (Padrão)</SelectItem>
+                                            {categorias?.map((categoria) => (
+                                                <SelectItem key={categoria.id} value={categoria.id}>
+                                                    {categoria.nome}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}

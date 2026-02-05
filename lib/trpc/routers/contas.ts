@@ -231,6 +231,15 @@ export const contasRouter = router({
                     .eq('user_id', ctx.user.id) // Segurança extra
             }
 
+            // Auto-learn: Atualizar categoria padrão do fornecedor se fornecido na conta
+            if (input.fornecedor_id && input.tipo_despesa_id) {
+                await ctx.supabase
+                    .from('fornecedores')
+                    .update({ tipo_despesa_id: input.tipo_despesa_id })
+                    .eq('id', input.fornecedor_id)
+                    .eq('user_id', ctx.user.id)
+            }
+
             // 2. Gerar parcelas
             let parcelasParaInserir = []
 
