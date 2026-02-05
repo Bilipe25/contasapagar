@@ -422,6 +422,31 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
         }
     }
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        if (!open) return
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ctrl+S: Save and create another
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault()
+                if (!isEditing) {
+                    setCriarOutra(true)
+                    form.handleSubmit(onSubmit)()
+                }
+            }
+            // Ctrl+Enter: Save and close
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault()
+                setCriarOutra(false)
+                form.handleSubmit(onSubmit)()
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [open, form, isEditing, onSubmit])
+
     const isLoading = createMutation.isPending || updateMutation.isPending
 
     return (
@@ -466,30 +491,30 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                 ) : (
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="contents">
-                            {/* Header Moderno com Empresa */}
-                            <div className="sticky top-0 z-10 bg-background border-b px-6 py-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                                <DialogHeader className="space-y-1 text-left">
-                                    <DialogTitle className="flex items-center gap-2 text-xl">
-                                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                                            <FileText className="h-5 w-5 text-primary" />
+                            {/* Header Compacto com Empresa */}
+                            <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <DialogHeader className="space-y-0.5 text-left">
+                                    <DialogTitle className="flex items-center gap-2 text-lg">
+                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                            <FileText className="h-4 w-4 text-primary" />
                                         </div>
                                         {isEditing ? 'Editar Conta' : 'Nova Conta a Pagar'}
                                     </DialogTitle>
-                                    <DialogDescription>
+                                    <DialogDescription className="text-xs">
                                         {isEditing
                                             ? 'Atualize as informações da conta'
-                                            : 'Preencha os dados para registrar uma nova conta'}
+                                            : 'Preencha os dados essenciais'}
                                     </DialogDescription>
                                 </DialogHeader>
 
-                                {/* Campo Empresa no Header */}
-                                <div className="w-full sm:w-[300px]">
+                                {/* Campo Empresa no Header - Compacto */}
+                                <div className="w-full sm:w-[280px]">
                                     <FormField
                                         control={form.control}
                                         name="empresa_id"
                                         render={({ field }) => (
-                                            <FormItem className="flex flex-col space-y-1">
-                                                <div className="flex gap-2">
+                                            <FormItem className="flex flex-col space-y-0">
+                                                <div className="flex gap-1.5">
                                                     <Popover open={comboEmpresa} onOpenChange={setComboEmpresa}>
                                                         <PopoverTrigger asChild>
                                                             <FormControl>
@@ -498,12 +523,12 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                                     role="combobox"
                                                                     aria-expanded={comboEmpresa}
                                                                     className={cn(
-                                                                        "flex-1 justify-between font-normal h-9",
+                                                                        "flex-1 justify-between font-normal h-8 text-xs",
                                                                         !field.value && "text-muted-foreground"
                                                                     )}
                                                                 >
                                                                     {field.value ? (
-                                                                        <span className="flex items-center gap-2 truncate">
+                                                                        <span className="flex items-center gap-1.5 truncate">
                                                                             <Building2 className="h-3 w-3 shrink-0" />
                                                                             <span className="truncate">
                                                                                 {empresas?.find((e) => e.id === field.value)?.nome_fantasia ||
@@ -517,9 +542,9 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                                 </Button>
                                                             </FormControl>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-[300px] p-0" align="end">
+                                                        <PopoverContent className="w-[280px] p-0" align="end">
                                                             <Command>
-                                                                <CommandInput placeholder="Buscar empresa..." />
+                                                                <CommandInput placeholder="Buscar empresa..." className="h-8 text-xs" />
                                                                 <CommandList>
                                                                     <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
                                                                     <CommandGroup>
@@ -529,10 +554,11 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                                                 field.onChange('')
                                                                                 setComboEmpresa(false)
                                                                             }}
+                                                                            className="text-xs"
                                                                         >
                                                                             <Check
                                                                                 className={cn(
-                                                                                    "mr-2 h-4 w-4",
+                                                                                    "mr-2 h-3.5 w-3.5",
                                                                                     !field.value ? "opacity-100" : "opacity-0"
                                                                                 )}
                                                                             />
@@ -546,6 +572,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                                                     field.onChange(e.id)
                                                                                     setComboEmpresa(false)
                                                                                 }}
+                                                                                className="text-xs"
                                                                             >
                                                                                 <Check
                                                                                     className={cn(
@@ -605,43 +632,43 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                             </div>
 
                             <Tabs defaultValue="geral" className="w-full">
-                                <div className="px-6 pt-4 border-b bg-background sticky top-[73px] z-10">
-                                    <TabsList className="w-full justify-start h-auto p-0 bg-transparent space-x-6">
+                                <div className="px-4 pt-3 border-b bg-background sticky top-[65px] z-10">
+                                    <TabsList className="w-full justify-start h-auto p-0 bg-transparent space-x-4">
                                         <TabsTrigger
                                             value="geral"
-                                            className="h-10 px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none transition-none"
+                                            className="h-9 px-0 text-sm data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none transition-none"
                                         >
-                                            Dados do Lançamento
+                                            📋 Lançamento
                                         </TabsTrigger>
                                         <TabsTrigger
                                             value="contabil"
-                                            className="h-10 px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none transition-none"
+                                            className="h-9 px-0 text-sm data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none transition-none"
                                         >
-                                            Informações Contábeis
+                                            📁 Contábil
                                         </TabsTrigger>
                                     </TabsList>
                                 </div>
 
-                                <div className="p-6">
+                                <div className="p-4">
                                     <TabsContent value="geral" className="m-0 focus-visible:ring-0 focus-visible:outline-none">
-                                        {/* Layout em 2 Colunas */}
-                                        <div className="grid gap-6 lg:grid-cols-2">
+                                        {/* Layout Compacto */}
+                                        <div className="grid gap-4 lg:grid-cols-2">
                                             {/* COLUNA ESQUERDA: Informações */}
-                                            <div className="space-y-4">
-                                                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
-                                                    <Building2 className="h-4 w-4" />
-                                                    Informações Básicas
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground border-b pb-1.5">
+                                                    <Building2 className="h-3.5 w-3.5" />
+                                                    INFORMAÇÕES BÁSICAS
                                                 </div>
 
                                                 {/* Fornecedor e Categoria Empilhados (Vertical) */}
-                                                <div className="space-y-3">
+                                                <div className="space-y-2.5">
                                                     {/* Fornecedor com busca + botão novo */}
                                                     <FormField
                                                         control={form.control}
                                                         name="fornecedor_id"
                                                         render={({ field }) => (
                                                             <FormItem className="flex flex-col">
-                                                                <FormLabel>Fornecedor</FormLabel>
+                                                                <FormLabel className="text-xs font-medium">Fornecedor <span className="text-red-500">*</span></FormLabel>
                                                                 <div className="flex gap-2">
                                                                     <Popover open={comboFornecedor} onOpenChange={setComboFornecedor}>
                                                                         <PopoverTrigger asChild>
@@ -733,7 +760,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                         name="tipo_despesa_id"
                                                         render={({ field }) => (
                                                             <FormItem className="flex flex-col">
-                                                                <FormLabel>Categoria</FormLabel>
+                                                                <FormLabel className="text-xs font-medium">Categoria <span className="text-red-500">*</span></FormLabel>
                                                                 <div className="flex gap-2">
                                                                     <Popover open={comboCategoria} onOpenChange={setComboCategoria}>
                                                                         <PopoverTrigger asChild>
@@ -844,7 +871,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                     name="banco_id"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Banco (Opcional)</FormLabel>
+                                                            <FormLabel className="text-xs font-medium text-muted-foreground">Banco (Opcional)</FormLabel>
                                                             <BankSelect
                                                                 value={field.value}
                                                                 onChange={field.onChange}
@@ -860,9 +887,9 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                     name="descricao"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Descrição</FormLabel>
+                                                            <FormLabel className="text-xs font-medium">Descrição <span className="text-red-500">*</span></FormLabel>
                                                             <FormControl>
-                                                                <Input placeholder="Ex: Conta de luz, Aluguel..." {...field} />
+                                                                <Input placeholder="Ex: Conta de luz, Aluguel..." className="h-8 text-xs" {...field} />
                                                             </FormControl>
                                                             <FormMessage />
                                                         </FormItem>
@@ -875,11 +902,11 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                     name="observacoes"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Observações (opcional)</FormLabel>
+                                                            <FormLabel className="text-xs font-medium text-muted-foreground">Observações (opcional)</FormLabel>
                                                             <FormControl>
                                                                 <Textarea
                                                                     placeholder="Informações adicionais..."
-                                                                    rows={4}
+                                                                    rows={3}
                                                                     className="resize-none"
                                                                     {...field}
                                                                 />
@@ -892,16 +919,16 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
 
                                             {/* COLUNA DIREITA: Finanças (Valor, Datas, Parcelas) */}
                                             {!isEditing && (
-                                                <div className="flex flex-col h-full space-y-4">
+                                                <div className="flex flex-col h-full space-y-3">
                                                     {/* Bloco de VALOR e DATAS - Destaque */}
-                                                    <div className="bg-muted/40 p-5 rounded-xl border border-border/50 space-y-5">
+                                                    <div className="bg-muted/40 p-4 rounded-xl border border-border/50 space-y-3">
                                                         {/* Valor Total com Input Grande */}
                                                         <FormField
                                                             control={form.control}
                                                             name="valor_total"
                                                             render={({ field }) => (
                                                                 <FormItem className="space-y-1">
-                                                                    <FormLabel className="text-xs uppercase tracking-wide text-muted-foreground font-bold">Valor Total</FormLabel>
+                                                                    <FormLabel className="text-xs uppercase tracking-wide text-muted-foreground font-bold">Valor Total <span className="text-red-500">*</span></FormLabel>
                                                                     <FormControl>
                                                                         <div className="relative group">
                                                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-medium group-focus-within:text-primary transition-colors">R$</span>
@@ -909,7 +936,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                                                 type="text"
                                                                                 inputMode="decimal"
                                                                                 placeholder="0,00"
-                                                                                className="pl-10 h-14 text-2xl font-bold bg-background shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
+                                                                                className="pl-10 h-12 text-xl font-bold bg-background shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
                                                                                 {...field}
                                                                             />
                                                                         </div>
@@ -920,7 +947,7 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                                         />
 
                                                         {/* Linha de Datas */}
-                                                        <div className="grid grid-cols-2 gap-4">
+                                                        <div className="grid grid-cols-2 gap-3">
                                                             <FormField
                                                                 control={form.control}
                                                                 name="data_emissao"
@@ -1184,46 +1211,82 @@ export function ContaFormDialog({ open, onOpenChange, contaId }: ContaFormDialog
                                 </div>
                             </Tabs>
 
-                            <DialogFooter className="flex-col sm:flex-row gap-2 pt-4 mt-6 border-t">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => onOpenChange(false)}
-                                    disabled={isLoading}
-                                    className="w-full sm:w-auto order-last sm:order-first"
-                                >
-                                    Cancelar
-                                </Button>
-                                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+
+                            {/* Floating Value Preview Footer */}
+                            <div className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent pt-3 pb-2 px-4 border-t">
+                                <div className="flex items-center justify-between gap-3">
+                                    {/* Value Summary - Only show when not editing */}
                                     {!isEditing && (
+                                        <div className="flex items-center gap-4">
+                                            <div>
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor Total</p>
+                                                <p className="text-lg font-bold leading-tight">
+                                                    {formatCurrency(parseFloat(valorTotal?.replace(',', '.')) || 0)}
+                                                </p>
+                                            </div>
+                                            {somaParcelas > 0 && (
+                                                <>
+                                                    <div className="h-8 w-px bg-border" />
+                                                    <div>
+                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Parcelas</p>
+                                                        <p className="text-sm font-semibold leading-tight">
+                                                            {parcelasEditaveis.length}x de {formatCurrency(somaParcelas / parcelasEditaveis.length)}
+                                                        </p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center gap-2 ml-auto">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => onOpenChange(false)}
+                                            disabled={isLoading}
+                                            size="sm"
+                                            className="h-8"
+                                        >
+                                            Cancelar
+                                        </Button>
+                                        {!isEditing && (
+                                            <Button
+                                                type="submit"
+                                                variant="secondary"
+                                                disabled={isLoading}
+                                                onClick={() => setCriarOutra(true)}
+                                                size="sm"
+                                                className="h-8"
+                                                title="Ctrl+S"
+                                            >
+                                                {isLoading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                                                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                                                Criar e Nova
+                                            </Button>
+                                        )}
                                         <Button
                                             type="submit"
-                                            variant="secondary"
                                             disabled={isLoading}
-                                            onClick={() => setCriarOutra(true)}
-                                            className="w-full sm:w-auto"
+                                            onClick={() => setCriarOutra(false)}
+                                            size="sm"
+                                            className="h-8"
+                                            title={isEditing ? "" : "Ctrl+Enter"}
                                         >
-                                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                            <Plus className="mr-1 h-4 w-4" />
-                                            Criar e Nova
+                                            {isLoading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                                            {isEditing ? (
+                                                'Atualizar'
+                                            ) : (
+                                                <>
+                                                    <Check className="mr-1.5 h-3.5 w-3.5" />
+                                                    Criar Conta
+                                                </>
+                                            )}
                                         </Button>
-                                    )}
-                                    <Button
-                                        type="submit"
-                                        disabled={isLoading}
-                                        onClick={() => setCriarOutra(false)}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        {isEditing ? 'Atualizar' : (
-                                            <>
-                                                <Check className="mr-2 h-4 w-4" />
-                                                Criar Conta
-                                            </>
-                                        )}
-                                    </Button>
+                                    </div>
                                 </div>
-                            </DialogFooter>
+                            </div>
+
 
                         </form>
                     </Form>
