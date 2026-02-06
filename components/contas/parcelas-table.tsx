@@ -12,6 +12,7 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { CheckCircle2, AlertCircle, Clock, MoreVertical, Edit, Undo2, Trash2 } from 'lucide-react'
 import {
     DropdownMenu,
@@ -33,6 +34,7 @@ interface Parcela {
     numero_parcela: number
     valor_original?: number
     valor_juros?: number
+    valor_desconto?: number
     valor_final: number
     data_vencimento: string
     status: string
@@ -116,6 +118,7 @@ export function ParcelasTable({ parcelas, contaId, contaDescricao }: ParcelasTab
                             <TableHead className="w-[60px]">#</TableHead>
                             <TableHead>Vencimento</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
+                            <TableHead className="text-right w-[100px]">Ajustes</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="w-[100px]"></TableHead>
                         </TableRow>
@@ -163,13 +166,38 @@ export function ParcelasTable({ parcelas, contaId, contaDescricao }: ParcelasTab
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <span className={cn(
-                                            "font-semibold",
-                                            isPago && "text-emerald-600",
-                                            isLate && "text-red-600"
-                                        )}>
-                                            {formatCurrency(parcela.valor_final)}
-                                        </span>
+                                        <div className="flex items-center justify-end gap-1.5">
+                                            <span className={cn(
+                                                "font-semibold",
+                                                isPago && "text-emerald-600",
+                                                isLate && "text-red-600"
+                                            )}>
+                                                {formatCurrency(parcela.valor_final)}
+                                            </span>
+                                            {isPago && ((parcela.valor_juros || 0) > 0 || (parcela.valor_desconto || 0) > 0) && (
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                                                    Ajustado
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {isPago && ((parcela.valor_juros || 0) > 0 || (parcela.valor_desconto || 0) > 0) ? (
+                                            <div className="flex flex-col gap-0.5 text-xs">
+                                                {(parcela.valor_juros || 0) > 0 && (
+                                                    <span className="text-orange-600 dark:text-orange-400">
+                                                        +{formatCurrency(parcela.valor_juros || 0)}
+                                                    </span>
+                                                )}
+                                                {(parcela.valor_desconto || 0) > 0 && (
+                                                    <span className="text-emerald-600">
+                                                        -{formatCurrency(parcela.valor_desconto || 0)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground text-xs">—</span>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <div className={cn(

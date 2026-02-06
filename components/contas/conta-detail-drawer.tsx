@@ -86,6 +86,20 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
         const progresso = totalParcelas > 0 ? Math.round((parcelasPagas / totalParcelas) * 100) : 0
         const isQuitada = parcelasPagas === totalParcelas && totalParcelas > 0
 
+        // Calcular totais de juros e descontos
+        const totalJuros = parcelas
+            .filter(p => p.status === 'pago')
+            .reduce((sum, p) => sum + ((p as any).valor_juros || 0), 0)
+
+        const totalDescontos = parcelas
+            .filter(p => p.status === 'pago')
+            .reduce((sum, p) => sum + ((p as any).valor_desconto || 0), 0)
+
+        // Valor base total (sem juros/descontos)
+        const valorBasePago = parcelas
+            .filter(p => p.status === 'pago')
+            .reduce((sum, p) => sum + ((p as any).valor_original || 0), 0)
+
         return {
             totalParcelas,
             parcelasPagas,
@@ -96,6 +110,9 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
             valorPendente,
             progresso,
             isQuitada,
+            totalJuros,
+            totalDescontos,
+            valorBasePago,
         }
     }, [conta?.parcelas])
 
@@ -272,6 +289,50 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
                                     )}>
                                         {formatCurrency(stats.isQuitada ? stats.valorPago : stats.valorPendente)}
                                     </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Resumo Financeiro Detalhado - Apenas se houver juros ou descontos */}
+                        {stats && (stats.totalJuros > 0 || stats.totalDescontos > 0) && (
+                            <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4" />
+                                    Resumo Financeiro
+                                </h4>
+
+                                <div className="grid grid-cols-3 gap-3 text-sm">
+                                    {/* Valor Base */}
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground">Valor Base</p>
+                                        <p className="font-semibold">{formatCurrency(stats.valorBasePago)}</p>
+                                    </div>
+
+                                    {/* Juros */}
+                                    {stats.totalJuros > 0 && (
+                                        <div className="space-y-1">
+                                            <p className="text-xs text-orange-600 dark:text-orange-400">+ Juros</p>
+                                            <p className="font-semibold text-orange-600 dark:text-orange-400">
+                                                {formatCurrency(stats.totalJuros)}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Descontos */}
+                                    {stats.totalDescontos > 0 && (
+                                        <div className="space-y-1">
+                                            <p className="text-xs text-emerald-600">- Descontos</p>
+                                            <p className="font-semibold text-emerald-600">
+                                                {formatCurrency(stats.totalDescontos)}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Linha de Total */}
+                                <div className="pt-2 border-t flex justify-between items-center">
+                                    <span className="text-sm font-medium">Total Pago</span>
+                                    <span className="text-lg font-bold">{formatCurrency(stats.valorPago)}</span>
                                 </div>
                             </div>
                         )}
