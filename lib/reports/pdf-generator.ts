@@ -80,12 +80,12 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
             {
                 text: 'Relatório de Contas a Pagar',
                 style: 'header',
-                alignment: 'center',
+                alignment: 'center' as Alignment,
             },
             {
                 text: monthName.charAt(0).toUpperCase() + monthName.slice(1),
                 style: 'subheader',
-                alignment: 'center',
+                alignment: 'center' as Alignment,
                 margin: [0, 0, 0, 20],
             },
             {
@@ -152,6 +152,42 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
                     margin: [0, 0, 0, 20] as [number, number, number, number],
                 }
             ] : []),
+            // Resumo Financeiro (Juros e Descontos)
+            ...((stats.totalJuros || stats.totalDescontos) ? [{
+                text: 'Resumo Financeiro',
+                style: 'tableHeader',
+                margin: [0, 10, 0, 5] as [number, number, number, number],
+            },
+            {
+                table: {
+                    widths: ['*', '*', '*'],
+                    body: [
+                        [
+                            { text: '', border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }, // Espaçamento
+                            { text: '+ Juros (Encargos)', fontSize: 9, color: COLORS.red },
+                            { text: formatCurrency(stats.totalJuros || 0), fontSize: 9, color: COLORS.red, alignment: 'right' as Alignment }
+                        ],
+                        [
+                            { text: '', border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }, // Espaçamento
+                            { text: '- Descontos Obtidos', fontSize: 9, color: COLORS.green },
+                            { text: formatCurrency(stats.totalDescontos || 0), fontSize: 9, color: COLORS.green, alignment: 'right' as Alignment }
+                        ],
+                        [
+                            { text: '', border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }, // Espaçamento
+                            { text: 'Impacto Líquido', bold: true, fontSize: 9 },
+                            {
+                                text: formatCurrency((stats.totalJuros || 0) - (stats.totalDescontos || 0)),
+                                bold: true,
+                                fontSize: 9,
+                                alignment: 'right' as Alignment,
+                                color: (stats.totalJuros || 0) > (stats.totalDescontos || 0) ? COLORS.red : COLORS.green
+                            }
+                        ]
+                    ]
+                },
+                layout: 'noBorders',
+                margin: [0, 0, 0, 15] as [number, number, number, number],
+            }] : []),
             {
                 text: 'Detalhamento de Contas',
                 style: 'tableHeader',
@@ -184,7 +220,7 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
             },
             {
                 text: `Gerado em ${new Date().toLocaleString('pt-BR')}`,
-                alignment: 'center',
+                alignment: 'center' as Alignment,
                 margin: [0, 20, 0, 0] as [number, number, number, number],
                 fontSize: 8,
                 color: '#666',
@@ -489,14 +525,14 @@ export async function generateContaPDF({ conta }: GenerateContaPDFParams) {
                     widths: [30, 80, 80, '*', 90], // Larguras ajustadas
                     body: [
                         [
-                            { text: '#', style: 'tableHeaderSmall', alignment: 'center' },
+                            { text: '#', style: 'tableHeaderSmall', alignment: 'center' as Alignment },
                             { text: 'Vencimento', style: 'tableHeaderSmall' },
                             { text: 'Status', style: 'tableHeaderSmall' },
                             { text: 'Pagamento', style: 'tableHeaderSmall' },
-                            { text: 'Valor', style: 'tableHeaderSmall', alignment: 'right' },
+                            { text: 'Valor', style: 'tableHeaderSmall', alignment: 'right' as Alignment },
                         ],
                         ...conta.parcelas.map((p: any) => [
-                            { text: p.numero_parcela ? `${p.numero_parcela}` : '-', style: 'tableCellSmall', alignment: 'center' },
+                            { text: p.numero_parcela ? `${p.numero_parcela}` : '-', style: 'tableCellSmall', alignment: 'center' as Alignment },
                             { text: formatDate(p.data_vencimento), style: 'tableCellSmall' },
                             {
                                 text: p.status.toUpperCase(),
@@ -504,7 +540,7 @@ export async function generateContaPDF({ conta }: GenerateContaPDFParams) {
                                 color: p.status === 'pago' ? COLORS.green : (p.status === 'atrasado' ? COLORS.red : COLORS.primary)
                             },
                             { text: p.data_pagamento ? formatDate(p.data_pagamento) : '-', style: 'tableCellSmall' },
-                            { text: formatCurrency(p.valor_final || p.valor), style: 'tableCellSmall', alignment: 'right' },
+                            { text: formatCurrency(p.valor_final || p.valor), style: 'tableCellSmall', alignment: 'right' as Alignment },
                         ])
                     ]
                 },
@@ -680,14 +716,14 @@ export async function generateContaPDF({ conta }: GenerateContaPDFParams) {
                     'Gerado automaticamente pelo Sistema de Controle de Contas.'
                 ],
                 style: 'footer',
-                alignment: 'center',
+                alignment: 'center' as Alignment,
                 margin: [0, 60, 0, 0]
             }
         ],
         styles: {
             header: { fontSize: 16, bold: true, color: COLORS.primary },
             subHeaderSmall: { fontSize: 9, color: COLORS.gray, margin: [0, 2, 0, 0] },
-            statusBadge: { fontSize: 10, bold: true, alignment: 'center', margin: [10, 3, 10, 3] },
+            statusBadge: { fontSize: 10, bold: true, alignment: 'center' as Alignment, margin: [10, 3, 10, 3] },
 
             label: { fontSize: 8, color: COLORS.gray, bold: true, margin: [0, 0, 0, 2] },
             value: { fontSize: 10, color: COLORS.primary, bold: true },
@@ -703,12 +739,12 @@ export async function generateContaPDF({ conta }: GenerateContaPDFParams) {
             tableHeaderSmall: { fontSize: 8, bold: true, color: COLORS.gray, fillColor: '#f1f5f9', margin: [0, 6, 0, 6] },
             tableCellSmall: { fontSize: 9, color: COLORS.primary, margin: [0, 6, 0, 6] },
 
-            moneyLabel: { fontSize: 9, color: COLORS.gray, alignment: 'right', margin: [0, 4, 10, 4] },
-            moneyValue: { fontSize: 10, color: COLORS.primary, alignment: 'right', bold: true, margin: [0, 4, 0, 4] },
-            moneyValueGray: { fontSize: 10, color: '#94a3b8', alignment: 'right', margin: [0, 4, 0, 4] },
+            moneyLabel: { fontSize: 9, color: COLORS.gray, alignment: 'right' as Alignment, margin: [0, 4, 10, 4] },
+            moneyValue: { fontSize: 10, color: COLORS.primary, alignment: 'right' as Alignment, bold: true, margin: [0, 4, 0, 4] },
+            moneyValueGray: { fontSize: 10, color: '#94a3b8', alignment: 'right' as Alignment, margin: [0, 4, 0, 4] },
 
-            totalLabel: { fontSize: 11, color: COLORS.primary, alignment: 'right', bold: true, margin: [0, 10, 10, 10] },
-            totalValue: { fontSize: 13, color: COLORS.primary, alignment: 'right', bold: true, margin: [0, 10, 0, 10] },
+            totalLabel: { fontSize: 11, color: COLORS.primary, alignment: 'right' as Alignment, bold: true, margin: [0, 10, 10, 10] },
+            totalValue: { fontSize: 13, color: COLORS.primary, alignment: 'right' as Alignment, bold: true, margin: [0, 10, 0, 10] },
 
             footer: { fontSize: 7, color: '#94a3b8', italics: true, lineHeight: 1.3 },
         },

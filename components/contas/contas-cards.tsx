@@ -154,13 +154,20 @@ export function ContasCards({ contas, onEdit, onView, onCreateClick }: ContasCar
 
                             {/* Right content - Value and actions */}
                             <div className="flex items-center gap-2 shrink-0">
-                                <span className={cn(
-                                    "text-sm font-bold",
-                                    conta.status === 'quitada' && "text-emerald-600 dark:text-emerald-400",
-                                    vencida && "text-red-600 dark:text-red-400"
-                                )}>
-                                    {safeFormatCurrency(valor)}
-                                </span>
+                                <div className="flex flex-col items-end gap-0.5">
+                                    <span className={cn(
+                                        "text-sm font-bold",
+                                        conta.status === 'quitada' && "text-emerald-600 dark:text-emerald-400",
+                                        vencida && "text-red-600 dark:text-red-400"
+                                    )}>
+                                        {safeFormatCurrency(valor)}
+                                    </span>
+                                    {conta.tem_ajustes_financeiros && (
+                                        <span className="text-[9px] text-orange-600 dark:text-orange-400 font-medium">
+                                            com ajustes
+                                        </span>
+                                    )}
+                                </div>
 
                                 {/* Mobile: Button to open Bottom Sheet */}
                                 <Button

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
     Select,
     SelectContent,
@@ -81,6 +82,9 @@ interface ContasFiltersProps {
     mesSelecionado: Date | null
     onMesSelecionadoChange: (date: Date | null) => void
     onPeriodChange: (start: string | null, end: string | null) => void
+    // Ajustes Financeiros
+    filtroAjustesFinanceiros: boolean
+    onAjustesFinanceirosChange: (value: boolean) => void
     // Limpar
     onClearFilters: () => void
     // Resultados
@@ -118,6 +122,8 @@ export function ContasFilters({
     mesSelecionado,
     onMesSelecionadoChange,
     onPeriodChange,
+    filtroAjustesFinanceiros,
+    onAjustesFinanceirosChange,
     onClearFilters,
     totalResults,
     hasActiveFilters,
@@ -133,6 +139,7 @@ export function ContasFilters({
         !!filtroFornecedor,
         !!filtroTipoDespesa,
         !!filtroEmpresa,
+        filtroAjustesFinanceiros,
     ].filter(Boolean).length
 
     // Obter nomes dos filtros selecionados
@@ -417,6 +424,24 @@ export function ContasFilters({
                             emptyText="Nenhum banco encontrado"
                             className="h-9 bg-background"
                         />
+                    </div>
+
+                    {/* Ajustes Financeiros */}
+                    <div className="space-y-1.5 col-span-full">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="filtro-ajustes"
+                                checked={filtroAjustesFinanceiros}
+                                onCheckedChange={onAjustesFinanceirosChange}
+                            />
+                            <label
+                                htmlFor="filtro-ajustes"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-1.5"
+                            >
+                                <AlertTriangle className="h-3.5 w-3.5 text-orange-600" />
+                                Apenas contas com juros ou descontos
+                            </label>
+                        </div>
                     </div>
                 </div>
             )}

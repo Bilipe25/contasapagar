@@ -134,18 +134,24 @@ export function generateExcel({ contas, stats, porTipoDespesa }: GenerateReportP
     XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo")
 
     // 2. Aba de Contas
-    const headers = ['Descrição', 'Fornecedor', 'Categoria', 'Vencimento', 'Valor', 'Status', 'Observações']
+    const headers = ['Descrição', 'Fornecedor', 'Categoria', 'Vencimento', 'Valor Original', '+ Juros', '- Descontos', '= Valor Líquido', 'Status', 'Observações']
     const contasData = [
         headers,
-        ...contas.map((c: any) => [
-            c.descricao,
-            c.fornecedores?.nome || c.fornecedores?.razao_social || '-',
-            c.tipos_despesa?.nome || '-',
-            formatDate(c.data_vencimento),
-            formatCurrency(c.valor_final || c.valor),
-            c.status.toUpperCase(),
-            c.observacoes || '-'
-        ])
+        ...contas.map((c: any) => {
+            const valorOriginal = (c.valor_final || c.valor) - (c.total_juros || 0) + (c.total_descontos || 0)
+            return [
+                c.descricao,
+                c.fornecedores?.nome || c.fornecedores?.razao_social || '-',
+                c.tipos_despesa?.nome || '-',
+                formatDate(c.data_vencimento),
+                formatCurrency(valorOriginal),
+                formatCurrency(c.total_juros || 0),
+                formatCurrency(c.total_descontos || 0),
+                formatCurrency(c.valor_final || c.valor),
+                c.status.toUpperCase(),
+                c.observacoes || '-'
+            ]
+        })
     ]
 
     const wsContas = XLSX.utils.aoa_to_sheet(contasData)
@@ -154,7 +160,10 @@ export function generateExcel({ contas, stats, porTipoDespesa }: GenerateReportP
         { wch: 30 }, // Fornecedor
         { wch: 20 }, // Categoria
         { wch: 12 }, // Vencimento
-        { wch: 15 }, // Valor
+        { wch: 15 }, // Valor Original
+        { wch: 15 }, // Juros
+        { wch: 15 }, // Descontos
+        { wch: 15 }, // Valor Líquido
         { wch: 10 }, // Status
         { wch: 40 }  // Observações
     ]

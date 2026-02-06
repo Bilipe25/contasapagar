@@ -17,6 +17,12 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -356,17 +362,49 @@ export function ContasTable({
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex flex-col items-end">
-                                                <span className={cn(
-                                                    "font-bold",
-                                                    isQuitada ? "text-emerald-600" : "text-foreground",
-                                                    vencida && "text-red-600"
-                                                )}>
-                                                    {formatCurrency(conta.valor_pendente)}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    Total: {formatCurrency(conta.valor_total)}
-                                                </span>
+                                            <div className="flex items-center justify-end gap-1.5">
+                                                <div className="flex flex-col items-end">
+                                                    <span className={cn(
+                                                        "font-bold",
+                                                        isQuitada ? "text-emerald-600" : "text-foreground",
+                                                        vencida && "text-red-600"
+                                                    )}>
+                                                        {formatCurrency(conta.valor_pendente)}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Total: {formatCurrency(conta.valor_total)}
+                                                    </span>
+                                                </div>
+                                                {(conta as any).tem_ajustes_financeiros && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="h-5 w-5 p-0 flex items-center justify-center cursor-help border-orange-300 dark:border-orange-700"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <AlertTriangle className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                                                                </Badge>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="left" className="max-w-[200px]">
+                                                                <div className="text-xs space-y-1">
+                                                                    <p className="font-semibold">Ajustes Financeiros:</p>
+                                                                    {(conta as any).total_juros > 0 && (
+                                                                        <p className="text-orange-600 dark:text-orange-400">
+                                                                            Juros: +{formatCurrency((conta as any).total_juros)}
+                                                                        </p>
+                                                                    )}
+                                                                    {(conta as any).total_descontos > 0 && (
+                                                                        <p className="text-emerald-600">
+                                                                            Descontos: -{formatCurrency((conta as any).total_descontos)}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">

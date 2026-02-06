@@ -128,6 +128,7 @@ export const contasRouter = router({
                     total_juros: totalJuros,
                     total_descontos: totalDescontos,
                     valor_original_pago: valorOriginalPago,
+                    tem_ajustes_financeiros: totalJuros > 0 || totalDescontos > 0,
                 }
             }) || []
         }),

@@ -42,6 +42,8 @@ export default function ContasPage() {
 
     // Filtro especial para vencidas (não está no store, é local)
     const [filtroVencidas, setFiltroVencidas] = useState(false)
+    // Filtro para ajustes financeiros (local)
+    const [filtroAjustesFinanceiros, setFiltroAjustesFinanceiros] = useState(false)
 
     // Mês selecionado para o picker
     const [mesSelecionadoFiltro, setMesSelecionadoFiltro] = useState<Date | null>(null)
@@ -142,19 +144,19 @@ export default function ContasPage() {
             return sum + (c.parcelas?.filter((p: any) => p.status === 'pago' && p.data_pagamento && isSameMonth(parseLocalDate(p.data_pagamento), new Date()))
                 .reduce((acc: number, p: any) => acc + (p.valor_final || 0), 0) || 0)
         }, 0),
+
+        // Calcular totais de juros e descontos (apenas parcelas pagas no mês)
+        totalJuros: contasData.reduce((sum, c) => {
+            return sum + (c.parcelas?.filter((p: any) => p.status === 'pago' && p.data_pagamento && isSameMonth(parseLocalDate(p.data_pagamento), new Date()))
+                .reduce((acc: number, p: any) => acc + (p.valor_juros || 0), 0) || 0)
+        }, 0),
+        totalDescontos: contasData.reduce((sum, c) => {
+            return sum + (c.parcelas?.filter((p: any) => p.status === 'pago' && p.data_pagamento && isSameMonth(parseLocalDate(p.data_pagamento), new Date()))
+                .reduce((acc: number, p: any) => acc + (p.valor_desconto || 0), 0) || 0)
+        }, 0),
     } : undefined
 
-    const hasActiveFilters = Boolean(
-        filtroStatus !== 'todos' ||
-        filtroFornecedor ||
-        filtroTipoDespesa ||
-        filtroEmpresa ||
-        filtroBanco ||
-        periodoInicio ||
-        periodoFim
-    )
-
-    // Filtrar por busca textual e vencidas localmente
+    // Aplicar filtros locais (busca textual, vencidas e ajustes financeiros)
     const contasFiltradas = contasData?.filter(conta => {
         // Filtro de busca textual
         if (searchQuery) {
@@ -167,15 +169,34 @@ export default function ContasPage() {
             if (!matchesSearch) return false
         }
 
-        // Filtro de vencidas (só mostrar se estiver ativa e vencida)
+        // Filtro de vencidas
         if (filtroVencidas) {
-            if (conta.status !== 'ativa') return false
-            if (!conta.proxima_parcela) return false
-            return isVencido(conta.proxima_parcela.data_vencimento)
+            const proximaParcela = conta.proxima_parcela
+            if (!proximaParcela || !isVencido(proximaParcela.data_vencimento)) {
+                return false
+            }
+        }
+
+        // Filtro de ajustes financeiros
+        if (filtroAjustesFinanceiros) {
+            if (!(conta as any).tem_ajustes_financeiros) {
+                return false
+            }
         }
 
         return true
     }) || []
+
+    const hasActiveFilters = Boolean(
+        filtroStatus !== 'todos' ||
+        filtroFornecedor ||
+        filtroTipoDespesa ||
+        filtroEmpresa ||
+        filtroBanco ||
+        periodoInicio ||
+        periodoFim ||
+        filtroAjustesFinanceiros
+    )
 
     const handleEdit = (id: string) => {
         setEditingConta(id)
@@ -309,7 +330,14 @@ export default function ContasPage() {
                         setPeriodoInicio(start)
                         setPeriodoFim(end)
                     }}
-                    onClearFilters={limparFiltros}
+                    filtroAjustesFinanceiros={filtroAjustesFinanceiros}
+                    onAjustesFinanceirosChange={setFiltroAjustesFinanceiros}
+                    onClearFilters={() => {
+                        limparFiltros()
+                        setFiltroVencidas(false)
+                        setFiltroAjustesFinanceiros(false)
+                        setMesSelecionadoFiltro(null)
+                    }}
                     totalResults={contasFiltradas.length}
                     hasActiveFilters={hasActiveFilters}
                 />

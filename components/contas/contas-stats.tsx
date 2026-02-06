@@ -14,6 +14,8 @@ interface ContasStatsProps {
         valorVencido: number
         pagas: number
         valorPago: number
+        totalJuros?: number
+        totalDescontos?: number
     }
     isLoading?: boolean
 }
@@ -30,6 +32,11 @@ export function ContasStats({ stats, isLoading }: ContasStatsProps) {
     }
 
     if (!stats) return null
+
+    const totalJuros = stats.totalJuros || 0
+    const totalDescontos = stats.totalDescontos || 0
+    const impactoFinanceiro = totalJuros - totalDescontos
+    const temAjustes = totalJuros > 0 || totalDescontos > 0
 
     const cards = [
         {
@@ -67,8 +74,22 @@ export function ContasStats({ stats, isLoading }: ContasStatsProps) {
         },
     ]
 
+    // Adicionar card de impacto financeiro apenas se houver ajustes
+    if (temAjustes) {
+        cards.push({
+            title: 'Impacto Financeiro',
+            value: formatCurrency(Math.abs(impactoFinanceiro)),
+            subValue: totalJuros > 0 || totalDescontos > 0
+                ? `${totalJuros > 0 ? '+' + formatCurrency(totalJuros) : ''} ${totalDescontos > 0 ? '-' + formatCurrency(totalDescontos) : ''}`.trim()
+                : 'Sem ajustes',
+            icon: impactoFinanceiro > 0 ? AlertTriangle : CheckCircle,
+            color: impactoFinanceiro > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-emerald-600 dark:text-emerald-400',
+            bgColor: impactoFinanceiro > 0 ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30',
+        })
+    }
+
     return (
-        <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-2 grid-cols-2 ${temAjustes ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             {cards.map((card) => {
                 const Icon = card.icon
                 return (
