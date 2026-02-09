@@ -42,7 +42,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { generateContaPDF } from '@/lib/reports/pdf-generator'
-import { generateContaExcel } from '@/lib/reports/excel-generator'
+// TODO: Implement generateContaExcel in excel-generators
+// import { generateContaExcel } from '@/lib/reports/excel-generators'
 import { toast } from 'sonner'
 
 interface ContaDetailDrawerProps {
@@ -232,17 +233,13 @@ export function ContaDetailDrawer({ open, onOpenChange, contaId, onEdit }: Conta
                                             Exportar PDF
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
+                                            disabled
                                             onClick={() => {
-                                                try {
-                                                    generateContaExcel({ conta })
-                                                    toast.success('Excel gerado com sucesso!')
-                                                } catch (error) {
-                                                    toast.error('Erro ao gerar Excel')
-                                                }
+                                                toast.info('Exportação Excel em breve!')
                                             }}
                                         >
                                             <FileDown className="h-4 w-4 mr-2" />
-                                            Exportar Excel
+                                            Exportar Excel (em breve)
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>

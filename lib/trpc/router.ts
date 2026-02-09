@@ -1,12 +1,13 @@
 import { router } from './init'
-import { dashboardRouter } from './routers/dashboard'
 import { contasRouter } from './routers/contas'
+import { parcelasRouter } from './routers/parcelas'
 import { fornecedoresRouter } from './routers/fornecedores'
 import { tiposDespesaRouter } from './routers/tipos-despesa'
-import { parcelasRouter } from './routers/parcelas'
 import { empresasRouter } from './routers/empresas'
 import { bancosRouter } from './routers/bancos'
 import { planoContasRouter } from './routers/plano-contas'
+import { dashboardRouter } from './routers/dashboard'
+import { reportsRouter } from './routers/reports'
 
 export const appRouter = router({
     contas: contasRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
     bancos: bancosRouter,
     parcelas: parcelasRouter,
     planoContas: planoContasRouter,
+    reports: reportsRouter,
 })
 
 export type AppRouter = typeof appRouter

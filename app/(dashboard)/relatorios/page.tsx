@@ -22,7 +22,7 @@ import { StatsCards } from '@/components/dashboard/stats-cards'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { generatePDF, generateAnnualPDF } from '@/lib/reports/pdf-generator'
-import { generateExcel } from '@/lib/reports/excel-generator'
+import { generateExcel } from '@/lib/reports/excel-generators'
 import { format, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 

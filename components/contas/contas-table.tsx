@@ -45,7 +45,7 @@ import {
     Download
 } from 'lucide-react'
 import { generateContaPDF } from '@/lib/reports/pdf-generator'
-import { generateContaExcel } from '@/lib/reports/excel-generator'
+// import { generateContaExcel } from '@/lib/reports/excel-generator'
 import { formatCurrency, formatDate, formatDateRelative, isVencido, parseLocalDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
@@ -445,12 +445,11 @@ export function ContasTable({
                                                     >
                                                         <Trash className="mr-2 h-4 w-4" /> Excluir
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuLabel>Exportar</DropdownMenuLabel>
                                                     <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateContaPDF({ conta }) }}>
                                                         <FileText className="mr-2 h-4 w-4" /> PDF
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateContaExcel({ conta }) }}>
-                                                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+                                                    <DropdownMenuItem disabled onClick={(e) => { e.stopPropagation(); }}>
+                                                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel (Em breve)
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>

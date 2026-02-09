@@ -6,7 +6,7 @@ import { trpc } from '@/lib/trpc/client'
 import { useAppStore } from '@/lib/store/use-app-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, FileText } from 'lucide-react'
 import { ContasTable } from '@/components/contas/contas-table'
 import { ContasCards } from '@/components/contas/contas-cards'
 import { ContaFormDialog } from '@/components/contas/conta-form-dialog'
@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { ConfirmDeleteDialog } from '@/components/contas/confirm-delete-dialog'
 import { BulkActionsBar } from '@/components/contas/bulk-actions-bar'
 import { BulkEditDialog } from '@/components/contas/bulk-edit-dialog'
+import { ReportsExportDialog } from '@/components/contas/reports-export-dialog'
 
 type StatusFilter = 'todos' | 'ativa' | 'quitada' | 'cancelada' | 'vencidas'
 
@@ -39,6 +40,9 @@ export default function ContasPage() {
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [bulkEditMode, setBulkEditMode] = useState<'empresa' | 'banco' | 'categoria' | null>(null)
     const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+
+    // Export Dialog State
+    const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
     // Filtro especial para vencidas (não está no store, é local)
     const [filtroVencidas, setFiltroVencidas] = useState(false)
@@ -285,6 +289,22 @@ export default function ContasPage() {
                         Gerencie suas contas e pagamentos
                     </p>
                 </div>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => setExportDialogOpen(true)}
+                        className="gap-2"
+                    >
+                        <FileText className="h-4 w-4" />
+                        <span className="hidden sm:inline">Exportar Relatórios</span>
+                        <span className="sm:hidden">Exportar</span>
+                    </Button>
+                    <Button onClick={() => setIsFormOpen(true)} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span className="hidden sm:inline">Nova Conta</span>
+                        <span className="sm:hidden">Nova</span>
+                    </Button>
+                </div>
             </div>
 
             {/* Sticky Search Bar - Mobile Only */}
@@ -435,6 +455,24 @@ export default function ContasPage() {
                 mode={bulkEditMode}
                 selectedIds={selectedIds}
                 onSuccess={() => setSelectedIds([])}
+            />
+
+            {/* Reports Export Dialog */}
+            <ReportsExportDialog
+                open={exportDialogOpen}
+                onOpenChange={setExportDialogOpen}
+                currentFilters={{
+                    filtroStatus,
+                    filtroFornecedor,
+                    filtroTipoDespesa,
+                    filtroEmpresa,
+                    filtroBanco,
+                    periodoInicio,
+                    periodoFim,
+                    filtroVencidas,
+                    filtroAjustesFinanceiros,
+                    searchQuery,
+                }}
             />
         </div>
     )
