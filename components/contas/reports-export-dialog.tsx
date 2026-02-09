@@ -263,8 +263,7 @@ export function ReportsExportDialog({ open, onOpenChange, currentFilters }: Repo
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="max-w-[95vw] w-[1400px] h-[85vh] p-0 gap-0 overflow-hidden flex flex-col sm:max-w-[1400px]"
-                style={{ maxWidth: '95vw', width: '1400px' }}
+                className="max-w-5xl w-full h-[85vh] p-0 gap-0 overflow-hidden flex flex-col"
             >
                 {/* Header Compacto */}
                 <DialogHeader className="px-6 py-4 border-b bg-muted/30">
