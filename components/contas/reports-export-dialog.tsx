@@ -263,7 +263,7 @@ export function ReportsExportDialog({ open, onOpenChange, currentFilters }: Repo
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="max-w-5xl w-full h-[85vh] p-0 gap-0 overflow-hidden flex flex-col"
+                className="sm:max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 overflow-hidden flex flex-col"
             >
                 {/* Header Compacto */}
                 <DialogHeader className="px-6 py-4 border-b bg-muted/30">
@@ -423,6 +423,6 @@ export function ReportsExportDialog({ open, onOpenChange, currentFilters }: Repo
                     </div>
                 </div>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     )
 }
