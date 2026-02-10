@@ -3,14 +3,17 @@ import {
     generateReportHeader,
     generateReportFooter,
     generateTable,
-    generateSummarySection,
+    generateCompactSummaryCards,
+    generateTableTotalsRow,
+    getStatusBadge,
     formatCurrency,
     formatDate,
     getDefaultDocumentDefinition,
+    REPORT_COLORS,
     type TableColumn,
     type ReportHeaderOptions,
 } from './pdf-helpers'
-import type { ExportConfig } from './types'
+import { type ExportConfig, ViewMode, DEFAULT_ACCOUNT_COLUMNS } from './types'
 
 interface MonthlyDetailedData {
     contas: any[]
@@ -42,7 +45,6 @@ export function generateMonthlyDetailedPDF(
 ): TDocumentDefinitions {
     const docDef = getDefaultDocumentDefinition()
 
-    // Cabeçalho
     const headerOptions: ReportHeaderOptions = {
         title: 'Relatório Mensal Detalhado',
         subtitle: 'Contas a Pagar',
@@ -50,43 +52,49 @@ export function generateMonthlyDetailedPDF(
             start: data.period.startDate,
             end: data.period.endDate,
         },
-        companyName: undefined, // TODO: Get from company settings
-        companyLogo: config.format.pdf?.includeCompanyLogo ? undefined : undefined, // TODO: Get logo
         generatedAt: new Date(),
+        reportStyle: 'professional',
     }
 
-    const content = []
+    const content: any[] = []
     content.push(generateReportHeader(headerOptions))
 
-    // Resumo Geral
-    const summaryItems = [
-        { label: 'Total de Contas', value: data.totals.totalAccounts },
-        { label: 'Total de Parcelas', value: data.totals.totalInstallments },
-        { label: 'Valor Total', value: formatCurrency(data.totals.totalValue), highlight: true },
-        { label: 'Valor Pago', value: formatCurrency(data.totals.totalPaid) },
-        { label: 'Valor Pendente', value: formatCurrency(data.totals.totalPending) },
-    ]
-    const summarySection = generateSummarySection('Resumo Geral', summaryItems)
-    content.push(...(Array.isArray(summarySection) ? summarySection : [summarySection]))
+    // KPI Cards compactos
+    const paidPercent = data.totals.totalValue > 0
+        ? ((data.totals.totalPaid / data.totals.totalValue) * 100).toFixed(1) + '%'
+        : '0%'
+    content.push(generateCompactSummaryCards([
+        { label: 'VALOR TOTAL', value: formatCurrency(data.totals.totalValue), color: REPORT_COLORS.primary, icon: '💰' },
+        { label: 'VALOR PAGO', value: formatCurrency(data.totals.totalPaid), color: REPORT_COLORS.success, icon: '✅' },
+        { label: 'VALOR PENDENTE', value: formatCurrency(data.totals.totalPending), color: REPORT_COLORS.warning, icon: '⏳' },
+        { label: 'CONTAS', value: `${data.totals.totalAccounts}`, subtext: `${data.totals.totalInstallments} parcelas · ${paidPercent} pago`, icon: '📊' },
+    ]))
 
-    // Resumo por Status
+    // Resumo por Status (compacto, inline)
     if (data.byStatus && data.byStatus.length > 0) {
         content.push({
             text: 'Distribuição por Status',
             style: 'sectionTitle',
-            margin: [0, 20, 0, 10] as [number, number, number, number],
+            margin: [0, 5, 0, 8] as [number, number, number, number],
         })
 
-        const statusData = data.byStatus.map((status) => ({
-            status_label: getStatusLabel(status.status),
-            count: status.count,
-            total: formatCurrency(status.total),
-        }))
+        const statusData = data.byStatus.map((s) => {
+            const badge = getStatusBadge(s.status)
+            return {
+                status_label: badge.text,
+                count: s.count,
+                total: formatCurrency(s.total),
+                percentual: data.totals.totalValue > 0
+                    ? formatPercent((s.total / data.totals.totalValue) * 100)
+                    : '0%',
+            }
+        })
 
         const statusColumns: TableColumn[] = [
             { header: 'Status', dataKey: 'status_label', width: '*', alignment: 'left' },
-            { header: 'Quantidade', dataKey: 'count', width: 80, alignment: 'center' },
-            { header: 'Valor Total', dataKey: 'total', width: 100, alignment: 'right' },
+            { header: 'Qtd', dataKey: 'count', width: 45, alignment: 'center' },
+            { header: 'Valor', dataKey: 'total', width: 90, alignment: 'right' },
+            { header: '%', dataKey: 'percentual', width: 50, alignment: 'right' },
         ]
 
         content.push(generateTable(statusData, statusColumns))
@@ -94,45 +102,140 @@ export function generateMonthlyDetailedPDF(
 
     // Detalhamento das Contas
     if (config.detailLevel !== 'resumido' && data.contas.length > 0) {
+        const isInstallmentView = config.viewMode === ViewMode.BY_INSTALLMENT
+
         content.push({
-            text: 'Detalhamento das Contas',
+            text: isInstallmentView ? 'Detalhamento das Parcelas' : 'Detalhamento das Contas',
             style: 'sectionTitle',
-            margin: [0, 20, 0, 10] as [number, number, number, number],
+            margin: [0, 15, 0, 8] as [number, number, number, number],
             pageBreak: 'before' as const,
         })
 
-        const tableData = data.contas.map((conta) => ({
-            descricao: conta.descricao || '-',
-            fornecedor: conta.fornecedores?.nome || '-',
-            categoria: conta.tipos_despesa?.nome || '-',
-            valor_original: formatCurrency(conta.valor_total),
-            parcelas: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
-            status: getStatusLabel(conta.status),
-            vencimento: conta.proxima_parcela?.data_vencimento
-                ? formatDate(conta.proxima_parcela.data_vencimento)
-                : '-',
-        }))
+        let tableData: any[] = []
 
-        const columns: TableColumn[] = [
-            { header: 'Descrição', dataKey: 'descricao', width: '*', alignment: 'left' },
-            { header: 'Fornecedor', dataKey: 'fornecedor', width: 100, alignment: 'left' },
-            { header: 'Categoria', dataKey: 'categoria', width: 80, alignment: 'left' },
-            { header: 'Valor', dataKey: 'valor_original', width: 80, alignment: 'right' },
-            { header: 'Parcela', dataKey: 'parcelas', width: 50, alignment: 'center' },
-            { header: 'Status', dataKey: 'status', width: 60, alignment: 'center' },
-            { header: 'Vencimento', dataKey: 'vencimento', width: 70, alignment: 'center' },
-        ]
+        if (isInstallmentView) {
+            // Flatten to installments
+            const installments = data.contas.flatMap(conta => {
+                return (conta.parcelas || []).map((p: any) => ({
+                    ...p,
+                    conta_descricao: conta.descricao,
+                    fornecedor_nome: conta.fornecedores?.nome,
+                    categoria_nome: conta.tipos_despesa?.nome,
+                    parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
+                }))
+            })
+
+            // Sort by due date
+            installments.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
+
+            tableData = installments.map((item) => {
+                const badge = getStatusBadge(item.status)
+                return {
+                    descricao: truncate(item.conta_descricao, 35),
+                    fornecedor: truncate(item.fornecedor_nome, 20),
+                    categoria: truncate(item.categoria_nome, 15),
+                    valor: formatCurrency(item.valor_final), // Valor da parcela
+                    parcelas: item.parcela_info,
+                    status: badge.text,
+                    vencimento: formatDate(item.data_vencimento),
+                    pagamento: item.data_pagamento ? formatDate(item.data_pagamento) : '-',
+                }
+            })
+        } else {
+            // By Account (Standard)
+            tableData = data.contas.map((conta) => {
+                const badge = getStatusBadge(conta.status)
+                return {
+                    descricao: truncate(conta.descricao, 40),
+                    fornecedor: truncate(conta.fornecedores?.nome, 20),
+                    categoria: truncate(conta.tipos_despesa?.nome, 15),
+                    valor: formatCurrency(conta.valor_total),
+                    parcelas: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
+                    status: badge.text,
+                    vencimento: conta.proxima_parcela?.data_vencimento
+                        ? formatDate(conta.proxima_parcela.data_vencimento)
+                        : '-',
+                    pagamento: '-', // Conta consolidada não tem data única de pagamento geralmente
+                }
+            })
+        }
+
+        // Define available columns mapping
+        const availableColsMap: Record<string, TableColumn> = {
+            // Internal/Legacy mappings safely mapped to data keys
+            'valor': { header: 'Valor', dataKey: 'valor', width: 75, alignment: 'right' },
+            'parcelas': { header: 'Parc.', dataKey: 'parcelas', width: 35, alignment: 'center' },
+            'vencimento': { header: 'Vencto', dataKey: 'vencimento', width: 60, alignment: 'center' },
+            'pagamento': { header: 'Pagto', dataKey: 'pagamento', width: 60, alignment: 'center' },
+
+            // Standard IDs from types.ts (DEFAULT_ACCOUNT_COLUMNS)
+            'descricao': { header: 'Descrição', dataKey: 'descricao', width: '*', alignment: 'left' },
+            'fornecedor': { header: 'Fornecedor', dataKey: 'fornecedor', width: 85, alignment: 'left' },
+            'categoria': { header: 'Categoria', dataKey: 'categoria', width: 65, alignment: 'left' },
+            'valor_final': { header: 'Valor', dataKey: 'valor', width: 75, alignment: 'right' },
+            'numero_parcela': { header: 'Parc.', dataKey: 'parcelas', width: 35, alignment: 'center' },
+            'status': { header: 'Status', dataKey: 'status', width: 60, alignment: 'center' },
+            'data_vencimento': { header: 'Vencto', dataKey: 'vencimento', width: 60, alignment: 'center' },
+            'data_pagamento': { header: 'Pagto', dataKey: 'pagamento', width: 60, alignment: 'center' },
+
+            // Backward compatibility aliases if needed (matching id patterns)
+            'col-description': { header: 'Descrição', dataKey: 'descricao', width: '*', alignment: 'left' },
+            'col-supplier': { header: 'Fornecedor', dataKey: 'fornecedor', width: 85, alignment: 'left' },
+            'col-category': { header: 'Categoria', dataKey: 'categoria', width: 65, alignment: 'left' },
+            'col-value': { header: 'Valor', dataKey: 'valor', width: 75, alignment: 'right' },
+            'col-installments': { header: 'Parc.', dataKey: 'parcelas', width: 35, alignment: 'center' },
+            'col-status': { header: 'Status', dataKey: 'status', width: 60, alignment: 'center' },
+            'col-due-date': { header: 'Vencto', dataKey: 'vencimento', width: 60, alignment: 'center' },
+            'col-payment-date': { header: 'Pagto', dataKey: 'pagamento', width: 60, alignment: 'center' },
+        }
+
+        let columns: TableColumn[] = []
+
+        // If specific columns selected, use them
+        if (config.columns?.selectedColumns && config.columns.selectedColumns.length > 0) {
+            columns = config.columns.selectedColumns
+                .map(colId => availableColsMap[colId])
+                .filter(Boolean) as TableColumn[]
+        }
+
+        // Fallback to default if no columns matched or selected
+        if (columns.length === 0) {
+            columns = [
+                availableColsMap['descricao'],
+                availableColsMap['fornecedor'],
+                availableColsMap['categoria'],
+                availableColsMap['valor_final'],
+                availableColsMap['numero_parcela'],
+                availableColsMap['status'],
+                availableColsMap['data_vencimento']
+            ]
+        }
 
         const widths = config.format.pdf?.orientation === 'landscape'
-            ? ['*', 120, 100, 90, 60, 70, 80]
+            ? columns.map(c => c.width === '*' ? '*' : (typeof c.width === 'number' ? c.width * 1.3 : c.width)) // Scale up for landscape
             : columns.map((col) => col.width!)
 
         content.push(
             generateTable(tableData, columns, {
                 alternateRowColors: true,
-                widths,
+                widths: widths as any, // dynamic widths
             })
         )
+
+        // Totals row below table
+        content.push({
+            table: {
+                widths: ['*', 90],
+                body: [
+                    [
+                        { text: `Total: ${data.contas.length} contas`, bold: true, fontSize: 9, fillColor: REPORT_COLORS.bgHeader, color: '#FFFFFF', margin: [4, 4, 4, 4] as [number, number, number, number] },
+                        { text: formatCurrency(data.totals.totalValue), bold: true, fontSize: 9, fillColor: REPORT_COLORS.bgHeader, color: '#FFFFFF', alignment: 'right' as const, margin: [4, 4, 4, 4] as [number, number, number, number] },
+                    ]
+                ],
+            },
+            layout: 'noBorders',
+            margin: [0, 0, 0, 10] as [number, number, number, number],
+        })
     }
 
     // Notas personalizadas
@@ -140,23 +243,22 @@ export function generateMonthlyDetailedPDF(
         content.push({
             text: 'Observações',
             style: 'sectionTitle',
-            margin: [0, 20, 0, 10] as [number, number, number, number],
+            margin: [0, 15, 0, 5] as [number, number, number, number],
         })
         content.push({
             text: config.additionalOptions.customNotes,
-            fontSize: 9,
-            margin: [0, 0, 0, 15] as [number, number, number, number],
+            fontSize: 8,
+            color: REPORT_COLORS.textSecondary,
+            margin: [0, 0, 0, 10] as [number, number, number, number],
         })
     }
 
     return {
         ...docDef,
         content,
-        pageOrientation: config.format.pdf?.orientation || 'portrait',
+        pageOrientation: config.format.pdf?.orientation || 'landscape',
         pageSize: config.format.pdf?.pageSize || 'A4',
-        footer: config.format.pdf?.includePageNumbers
-            ? (currentPage, pageCount) => generateReportFooter(currentPage, pageCount)
-            : undefined,
+        footer: (currentPage, pageCount) => generateReportFooter(currentPage, pageCount),
     } as TDocumentDefinitions
 }
 
@@ -181,62 +283,102 @@ export function generateSupplierConsolidatedPDF(
 
     const headerOptions: ReportHeaderOptions = {
         title: 'Consolidado por Fornecedor',
-        subtitle: 'Análise de Despesas',
+        subtitle: 'Análise de Despesas por Fornecedor',
         period: {
             start: data.period.startDate,
             end: data.period.endDate,
         },
         generatedAt: new Date(),
+        reportStyle: 'professional',
     }
 
-    const content = []
+    const content: any[] = []
     content.push(generateReportHeader(headerOptions))
 
-    // Resumo
-    const summarySectionItems = generateSummarySection('Resumo Geral', [
-        { label: 'Total de Fornecedores', value: data.suppliers.length },
-        { label: 'Total de Contas', value: data.totals.totalAccounts },
-        { label: 'Valor Total', value: formatCurrency(data.totals.totalValue), highlight: true },
-        { label: 'Valor Pago', value: formatCurrency(data.totals.totalPaid) },
-        { label: 'Valor Pendente', value: formatCurrency(data.totals.totalPending) },
-    ])
-    content.push(...(Array.isArray(summarySectionItems) ? summarySectionItems : [summarySectionItems]))
+    // KPI Cards
+    const totalContas = data.suppliers.reduce((sum, s) => sum + s.accounts.length, 0)
+    const paidPercent = data.totals.totalValue > 0
+        ? ((data.totals.totalPaid / data.totals.totalValue) * 100).toFixed(1) + '%'
+        : '0%'
+
+    content.push(generateCompactSummaryCards([
+        { label: 'FORNECEDORES', value: `${data.suppliers.length}`, icon: '🏢' },
+        { label: 'VALOR TOTAL', value: formatCurrency(data.totals.totalValue), color: REPORT_COLORS.primary, icon: '💰' },
+        { label: 'VALOR PAGO', value: formatCurrency(data.totals.totalPaid), color: REPORT_COLORS.success, subtext: paidPercent, icon: '✅' },
+        { label: 'VALOR PENDENTE', value: formatCurrency(data.totals.totalPending), color: REPORT_COLORS.warning, icon: '⏳' },
+    ]))
 
     // Tabela de Fornecedores
     content.push({
         text: 'Detalhamento por Fornecedor',
         style: 'sectionTitle',
-        margin: [0, 20, 0, 10] as [number, number, number, number],
+        margin: [0, 5, 0, 8] as [number, number, number, number],
     })
 
-    const tableData = data.suppliers.map((s) => ({
-        fornecedor: s.supplier.nome || 'Sem Fornecedor',
+    // Sort by total value descending
+    const sortedSuppliers = [...data.suppliers].sort((a, b) => b.totalValue - a.totalValue)
+
+    const tableData = sortedSuppliers.map((s) => ({
+        fornecedor: truncate(s.supplier.nome, 30) || 'Sem Fornecedor',
         contas: s.accounts.length,
         total: formatCurrency(s.totalValue),
         pago: formatCurrency(s.totalPaid),
         pendente: formatCurrency(s.totalPending),
-        percentual: formatPercent((s.totalValue / data.totals.totalValue) * 100),
+        percentual: data.totals.totalValue > 0
+            ? formatPercent((s.totalValue / data.totals.totalValue) * 100)
+            : '0%',
     }))
 
     const columns: TableColumn[] = [
         { header: 'Fornecedor', dataKey: 'fornecedor', width: '*', alignment: 'left' },
-        { header: 'Contas', dataKey: 'contas', width: 50, alignment: 'center' },
+        { header: 'Qtd', dataKey: 'contas', width: 35, alignment: 'center' },
         { header: 'Total', dataKey: 'total', width: 80, alignment: 'right' },
         { header: 'Pago', dataKey: 'pago', width: 80, alignment: 'right' },
         { header: 'Pendente', dataKey: 'pendente', width: 80, alignment: 'right' },
-        { header: '%', dataKey: 'percentual', width: 50, alignment: 'right' },
+        { header: '% Total', dataKey: 'percentual', width: 50, alignment: 'right' },
     ]
 
     content.push(generateTable(tableData, columns))
+
+    // Totals row
+    content.push({
+        table: {
+            widths: ['*', 35, 80, 80, 80, 50],
+            body: [
+                generateTableTotalsRow([
+                    { label: `TOTAL (${data.suppliers.length} fornecedores)`, value: '', colSpan: 2 },
+                    { value: formatCurrency(data.totals.totalValue) },
+                    { value: formatCurrency(data.totals.totalPaid) },
+                    { value: formatCurrency(data.totals.totalPending) },
+                    { value: '100%' },
+                ], 6),
+            ],
+        },
+        layout: 'noBorders',
+        margin: [0, 0, 0, 10] as [number, number, number, number],
+    })
+
+    // Notas personalizadas
+    if (config.additionalOptions?.customNotes) {
+        content.push({
+            text: 'Observações',
+            style: 'sectionTitle',
+            margin: [0, 15, 0, 5] as [number, number, number, number],
+        })
+        content.push({
+            text: config.additionalOptions.customNotes,
+            fontSize: 8,
+            color: REPORT_COLORS.textSecondary,
+            margin: [0, 0, 0, 10] as [number, number, number, number],
+        })
+    }
 
     return {
         ...docDef,
         content,
         pageOrientation: config.format.pdf?.orientation || 'portrait',
         pageSize: config.format.pdf?.pageSize || 'A4',
-        footer: config.format.pdf?.includePageNumbers
-            ? (currentPage, pageCount) => generateReportFooter(currentPage, pageCount)
-            : undefined,
+        footer: (currentPage, pageCount) => generateReportFooter(currentPage, pageCount),
     } as TDocumentDefinitions
 }
 
@@ -251,6 +393,12 @@ function getStatusLabel(status: string): string {
         parcial: 'Parcial',
     }
     return statusMap[status] || status
+}
+
+function truncate(text: string | null | undefined, maxLength: number): string {
+    if (!text) return '-'
+    if (text.length <= maxLength) return text
+    return text.substring(0, maxLength) + '…'
 }
 
 function formatPercent(value: number): string {

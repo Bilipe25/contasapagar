@@ -325,13 +325,13 @@ export function generateSummarySection(
                     {
                         text: item.label,
                         style: item.highlight ? 'summaryLabelHighlight' : 'summaryLabel',
-                        border: [false, false, false, false],
+                        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
                     },
                     {
                         text: item.value,
                         style: item.highlight ? 'summaryValueHighlight' : 'summaryValue',
                         alignment: 'right' as const,
-                        border: [false, false, false, false],
+                        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
                     },
                 ]),
             },
@@ -378,63 +378,63 @@ export function formatPercent(value: number | null | undefined): string {
  */
 export const reportStyles: StyleDictionary = {
     reportTitle: {
-        fontSize: 20,
+        fontSize: 16,
         bold: true,
         color: '#1f2937',
     },
     reportSubtitle: {
-        fontSize: 14,
+        fontSize: 11,
         color: '#6b7280',
     },
     companyName: {
-        fontSize: 12,
+        fontSize: 11,
         bold: true,
         color: '#374151',
     },
     reportPeriod: {
-        fontSize: 11,
+        fontSize: 10,
         color: '#6b7280',
         italics: true,
     },
     generatedDate: {
-        fontSize: 9,
+        fontSize: 8,
         color: '#9ca3af',
     },
     sectionTitle: {
-        fontSize: 14,
+        fontSize: 12,
         bold: true,
         color: '#1f2937',
     },
     tableHeader: {
-        fontSize: 10,
+        fontSize: 8,
         bold: true,
-        margin: [5, 5, 5, 5] as [number, number, number, number],
+        margin: [4, 4, 4, 4] as [number, number, number, number],
     },
     tableCell: {
-        fontSize: 9,
-        margin: [5, 3, 5, 3] as [number, number, number, number],
+        fontSize: 8,
+        margin: [4, 2, 4, 2] as [number, number, number, number],
     },
     tableCellBold: {
-        fontSize: 9,
+        fontSize: 8,
         bold: true,
-        margin: [5, 3, 5, 3] as [number, number, number, number],
+        margin: [4, 2, 4, 2] as [number, number, number, number],
     },
     summaryLabel: {
-        fontSize: 10,
+        fontSize: 9,
         color: '#374151',
     },
     summaryValue: {
-        fontSize: 10,
+        fontSize: 9,
         bold: true,
         color: '#1f2937',
     },
     summaryLabelHighlight: {
-        fontSize: 11,
+        fontSize: 10,
         bold: true,
         color: '#1f2937',
     },
     summaryValueHighlight: {
-        fontSize: 11,
+        fontSize: 10,
         bold: true,
         color: '#3b82f6',
     },
@@ -444,62 +444,62 @@ export const reportStyles: StyleDictionary = {
     },
     // Novos estilos adicionados
     accountingTitle: {
-        fontSize: 18,
+        fontSize: 16,
         bold: true,
         color: REPORT_COLORS.textPrimary,
         decoration: 'underline',
     },
     accountingSubtitle: {
-        fontSize: 12,
+        fontSize: 11,
         bold: true,
         color: REPORT_COLORS.textSecondary,
     },
     statusPaid: {
-        fontSize: 9,
+        fontSize: 8,
         bold: true,
         color: REPORT_COLORS.success,
     },
     statusPending: {
-        fontSize: 9,
+        fontSize: 8,
         bold: true,
         color: REPORT_COLORS.warning,
     },
     statusOverdue: {
-        fontSize: 9,
+        fontSize: 8,
         bold: true,
         color: REPORT_COLORS.danger,
     },
     valuePositive: {
-        fontSize: 9,
+        fontSize: 8,
         color: REPORT_COLORS.success,
     },
     valueNegative: {
-        fontSize: 9,
+        fontSize: 8,
         color: REPORT_COLORS.danger,
     },
     subtotalRow: {
-        fontSize: 10,
+        fontSize: 9,
         bold: true,
         fillColor: REPORT_COLORS.bgMuted,
     },
     totalRow: {
-        fontSize: 11,
+        fontSize: 10,
         bold: true,
         fillColor: REPORT_COLORS.primaryLight,
         color: '#FFFFFF',
     },
     alertInfo: {
-        fontSize: 9,
+        fontSize: 8,
         color: REPORT_COLORS.info,
         italics: true,
     },
     alertWarning: {
-        fontSize: 9,
+        fontSize: 8,
         color: REPORT_COLORS.warning,
         bold: true,
     },
     alertDanger: {
-        fontSize: 9,
+        fontSize: 8,
         color: REPORT_COLORS.danger,
         bold: true,
     },
@@ -511,11 +511,11 @@ export const reportStyles: StyleDictionary = {
 export function getDefaultDocumentDefinition(): Partial<TDocumentDefinitions> {
     return {
         pageSize: 'A4',
-        pageMargins: [40, 60, 40, 60] as [number, number, number, number],
+        pageMargins: [30, 40, 30, 40] as [number, number, number, number],
         styles: reportStyles,
         defaultStyle: {
             font: 'Roboto',
-            fontSize: 10,
+            fontSize: 9,
         },
     }
 }
@@ -706,3 +706,162 @@ export function generateKPISection(
     }
 }
 
+/**
+ * Gera cards compactos de KPIs lado a lado (resumo visual)
+ */
+export function generateCompactSummaryCards(
+    cards: { label: string; value: string; subtext?: string; color?: string; icon?: string }[]
+): Content {
+    const cardColumns = cards.map(card => ({
+        stack: [
+            {
+                text: card.icon ? `${card.icon} ${card.label}` : card.label,
+                fontSize: 7,
+                color: REPORT_COLORS.textMuted,
+                alignment: 'center' as const,
+                margin: [0, 0, 0, 2] as [number, number, number, number],
+            },
+            {
+                text: card.value,
+                fontSize: 13,
+                bold: true,
+                color: card.color || REPORT_COLORS.textPrimary,
+                alignment: 'center' as const,
+            },
+            ...(card.subtext ? [{
+                text: card.subtext,
+                fontSize: 7,
+                color: REPORT_COLORS.textSecondary,
+                alignment: 'center' as const,
+                italics: true,
+                margin: [0, 1, 0, 0] as [number, number, number, number],
+            }] : []),
+        ],
+        width: '*',
+        margin: [2, 0, 2, 0] as [number, number, number, number],
+    }))
+
+    return {
+        table: {
+            widths: cards.map(() => '*'),
+            body: [[
+                ...cardColumns.map(col => ({
+                    ...col,
+                    fillColor: REPORT_COLORS.bgLight,
+                    margin: [6, 8, 6, 8] as [number, number, number, number],
+                    border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                }))
+            ]]
+        },
+        layout: {
+            hLineWidth: () => 1,
+            vLineWidth: () => 0,
+            hLineColor: () => REPORT_COLORS.border,
+        },
+        margin: [0, 8, 0, 12] as [number, number, number, number],
+    }
+}
+
+/**
+ * Gera linha de totais para tabelas (rodapé com fundo escuro)
+ */
+export function generateTableTotalsRow(
+    items: { label?: string; value?: string; colSpan?: number }[],
+    columnCount: number
+): any[] {
+    const row: any[] = []
+    let colsUsed = 0
+
+    items.forEach((item, idx) => {
+        const span = item.colSpan || 1
+        row.push({
+            text: item.label || item.value,
+            style: 'tableCellBold',
+            fillColor: REPORT_COLORS.bgHeader,
+            color: '#FFFFFF',
+            alignment: item.label ? 'left' as const : 'right' as const,
+            colSpan: span,
+            margin: [4, 4, 4, 4] as [number, number, number, number],
+        })
+        // Add empty cells for colspan
+        for (let i = 1; i < span; i++) {
+            row.push({})
+        }
+        colsUsed += span
+    })
+
+    // Fill remaining columns
+    while (colsUsed < columnCount) {
+        row.push({
+            text: '',
+            fillColor: REPORT_COLORS.bgHeader,
+        })
+        colsUsed++
+    }
+
+    return row
+}
+
+/**
+ * Gera barras visuais de distribuição percentual (horizontal bars)
+ */
+export function generateDistributionBars(
+    items: { label: string; value: number; percentage: number; color?: string }[],
+    maxBarWidth: number = 300
+): Content {
+    const barItems: Content[] = []
+    const colors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1']
+
+    items.forEach((item, idx) => {
+        const barWidth = Math.max(5, (item.percentage / 100) * maxBarWidth)
+        const barColor = item.color || colors[idx % colors.length]
+
+        barItems.push({
+            columns: [
+                {
+                    text: item.label,
+                    fontSize: 8,
+                    color: REPORT_COLORS.textPrimary,
+                    width: 120,
+                },
+                {
+                    canvas: [
+                        {
+                            type: 'rect',
+                            x: 0,
+                            y: 2,
+                            w: maxBarWidth,
+                            h: 10,
+                            color: REPORT_COLORS.bgMuted,
+                            r: 2,
+                        },
+                        {
+                            type: 'rect',
+                            x: 0,
+                            y: 2,
+                            w: barWidth,
+                            h: 10,
+                            color: barColor,
+                            r: 2,
+                        },
+                    ],
+                    width: maxBarWidth + 10,
+                },
+                {
+                    text: `${item.percentage.toFixed(1)}%`,
+                    fontSize: 8,
+                    bold: true,
+                    color: REPORT_COLORS.textSecondary,
+                    alignment: 'right' as const,
+                    width: 50,
+                },
+            ],
+            margin: [0, 2, 0, 2] as [number, number, number, number],
+        })
+    })
+
+    return {
+        stack: barItems,
+        margin: [0, 5, 0, 10] as [number, number, number, number],
+    }
+}

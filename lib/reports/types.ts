@@ -93,6 +93,17 @@ export enum SortOrder {
     DESC = 'desc',
 }
 
+export enum DateFilterField {
+    EMISSION_DATE = 'emission_date',
+    DUE_DATE = 'due_date',
+    PAYMENT_DATE = 'payment_date',
+}
+
+export enum ViewMode {
+    BY_ACCOUNT = 'by_account',
+    BY_INSTALLMENT = 'by_installment',
+}
+
 // INTERFACES
 
 export interface ExportConfig {
@@ -103,11 +114,13 @@ export interface ExportConfig {
     format: FormatConfig
     columns: ColumnConfig
     detailLevel: DetailLevel
+    viewMode: ViewMode
     additionalOptions: AdditionalOptionsConfig
 }
 
 export interface PeriodConfig {
     type: PeriodType
+    dateField?: DateFilterField
     month?: number
     year?: number
     startDate?: Date
@@ -421,6 +434,7 @@ export const DEFAULT_ACCOUNT_COLUMNS: AvailableColumn[] = [
 export const DEFAULT_EXPORT_CONFIG: Partial<ExportConfig> = {
     period: {
         type: PeriodType.CURRENT_MONTH,
+        dateField: DateFilterField.EMISSION_DATE,
     },
     companies: {
         mode: CompanyMode.ALL,
@@ -440,7 +454,12 @@ export const DEFAULT_EXPORT_CONFIG: Partial<ExportConfig> = {
             monochromeMode: false,
         },
     },
+    columns: {
+        availableColumns: [],
+        selectedColumns: [],
+    },
     detailLevel: DetailLevel.NORMAL,
+    viewMode: ViewMode.BY_ACCOUNT,
     additionalOptions: {
         statistics: {
             includeTotals: true,

@@ -1,18 +1,20 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../init'
 import { TRPCError } from '@trpc/server'
-import { PeriodType, type ExportConfig } from '@/lib/reports/types'
+import { PeriodType, DateFilterField, type ExportConfig } from '@/lib/reports/types'
 import { startOfMonth, endOfMonth, addMonths, parseISO, format } from 'date-fns'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 // Schema de validação para configuração de relatório
 const reportConfigSchema = z.object({
     reportType: z.string(),
     period: z.object({
         type: z.nativeEnum(PeriodType),
+        dateField: z.nativeEnum(DateFilterField).optional().default(DateFilterField.EMISSION_DATE),
         month: z.number().optional(),
         year: z.number().optional(),
-        startDate: z.string().optional(),  // Changed from z.date() to z.string() for JSON compatibility
-        endDate: z.string().optional(),    // Changed from z.date() to z.string() for JSON compatibility
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
         quarter: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
         quarterYear: z.number().optional(),
         fullYear: z.number().optional(),
@@ -34,20 +36,17 @@ export const reportsRouter = router({
             const { startDate, endDate } = getPeriodDates(input.period)
 
             // Buscar contas com parcelas e relacionamentos
-            const { data: contas, error } = await supabase
-                .from('contas')
-                .select(`
-          *,
-          fornecedores(id, nome, cnpj_cpf),
-          tipos_despesa(id, nome, cor),
-          empresas(id, nome_fantasia),
-          bancos(id, nome),
-          parcelas(*)
-        `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString())
-                .lte('data_emissao', endDate.toISOString())
-                .order('created_at', { ascending: false })
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, fornecedores(id, nome, cnpj_cpf), tipos_despesa(id, nome, cor), empresas(id, nome_fantasia), bancos(id, nome), parcelas(*)`,
+                dateField,
+                startDate,
+                endDate,
+                { order: { column: 'created_at', ascending: false } }
+            )
 
             if (error) {
                 console.error('Error fetching monthly detailed report:', error)
@@ -86,17 +85,16 @@ export const reportsRouter = router({
             const { startDate, endDate } = getPeriodDates(input.period)
 
             // Buscar contas agrupadas por fornecedor
-            const { data: contas, error } = await supabase
-                .from('contas')
-                .select(`
-          *,
-          fornecedores(id, nome, cnpj_cpf, telefone, email),
-          tipos_despesa(id, nome),
-          parcelas(*)
-        `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString())
-                .lte('data_emissao', endDate.toISOString())
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, fornecedores(id, nome, cnpj_cpf, telefone, email), tipos_despesa(id, nome), parcelas(*)`,
+                dateField,
+                startDate,
+                endDate,
+            )
 
             if (error) {
                 throw new TRPCError({
@@ -126,17 +124,16 @@ export const reportsRouter = router({
             const { supabase, user } = ctx
             const { startDate, endDate } = getPeriodDates(input.period)
 
-            const { data: contas, error } = await supabase
-                .from('contas')
-                .select(`
-          *,
-          tipos_despesa(id, nome, cor, descricao),
-          fornecedores(id, nome),
-          parcelas(*)
-        `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString())
-                .lte('data_emissao', endDate.toISOString())
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, tipos_despesa(id, nome, cor, descricao), fornecedores(id, nome), parcelas(*)`,
+                dateField,
+                startDate,
+                endDate,
+            )
 
             if (error) {
                 throw new TRPCError({
@@ -272,16 +269,16 @@ export const reportsRouter = router({
             const { startDate, endDate } = getPeriodDates(input.period)
 
             // Buscar contas e plano de contas
-            const { data: contas, error: contasError } = await supabase
-                .from('contas')
-                .select(`
-                    *,
-                    plano_contas(id, codigo, descricao, tipo, nivel, conta_superior_id),
-                    parcelas(*)
-                 `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString().split('T')[0])
-                .lte('data_emissao', endDate.toISOString().split('T')[0])
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error: contasError } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, plano_contas(id, codigo, descricao, tipo, nivel, conta_superior_id), parcelas(*)`,
+                dateField,
+                startDate,
+                endDate,
+            )
 
             if (contasError) {
                 throw new TRPCError({
@@ -335,18 +332,17 @@ export const reportsRouter = router({
             const { startDate, endDate } = getPeriodDates(input.period)
 
             // Buscar contas e plano de contas
-            const { data: contas, error } = await supabase
-                .from('contas')
-                .select(`
-                    *,
-                    plano_contas(id, codigo, descricao),
-                    fornecedores(nome),
-                    parcelas(*)
-                 `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString().split('T')[0])
-                .lte('data_emissao', endDate.toISOString().split('T')[0])
-                .order('data_emissao', { ascending: true })
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, plano_contas(id, codigo, descricao), fornecedores(nome), parcelas(*)`,
+                dateField,
+                startDate,
+                endDate,
+                { order: { column: 'data_emissao', ascending: true } }
+            )
 
             if (error) {
                 throw new TRPCError({
@@ -468,18 +464,17 @@ export const reportsRouter = router({
             const { supabase, user } = ctx
             const { startDate, endDate } = getPeriodDates(input.period)
 
-            const { data: contas, error } = await supabase
-                .from('contas')
-                .select(`
-                    *,
-                    fornecedores(id, nome, cnpj_cpf, email, telefone),
-                    tipos_despesa(id, nome),
-                    parcelas(*)
-                 `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString().split('T')[0])
-                .lte('data_emissao', endDate.toISOString().split('T')[0])
-                .order('data_emissao', { ascending: true })
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, fornecedores(id, nome, cnpj_cpf, email, telefone), tipos_despesa(id, nome), parcelas(*)`,
+                dateField,
+                startDate,
+                endDate,
+                { order: { column: 'data_emissao', ascending: true } }
+            )
 
             if (error) {
                 throw new TRPCError({
@@ -505,12 +500,16 @@ export const reportsRouter = router({
             const { startDate, endDate } = getPeriodDates(input.period)
 
             // Buscar contas
-            const { data: contas, error } = await supabase
-                .from('contas')
-                .select(`*, tipos_despesa(nome), fornecedores(nome)`)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString().split('T')[0])
-                .lte('data_emissao', endDate.toISOString().split('T')[0])
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, tipos_despesa(nome), fornecedores(nome)`,
+                dateField,
+                startDate,
+                endDate,
+            )
 
             if (error) {
                 throw new TRPCError({
@@ -609,16 +608,16 @@ export const reportsRouter = router({
             const { startDate, endDate } = getPeriodDates(input.period)
 
             // Buscar contas
-            const { data: contas, error } = await supabase
-                .from('contas')
-                .select(`
-                    *,
-                    empresas(id, razao_social, nome_fantasia),
-                    parcelas(*)
-                 `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString().split('T')[0])
-                .lte('data_emissao', endDate.toISOString().split('T')[0])
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `*, empresas(id, razao_social, nome_fantasia), parcelas(*)`,
+                dateField,
+                startDate,
+                endDate,
+            )
 
             if (error) {
                 throw new TRPCError({
@@ -731,15 +730,16 @@ export const reportsRouter = router({
             }
 
             // 2. Buscar contas com parcelas no período
-            const { data: contas, error: contasError } = await supabase
-                .from('contas')
-                .select(`
-                    id, valor_total, plano_conta_id,
-                    parcelas(id, valor_final, status, data_vencimento, data_pagamento)
-                `)
-                .eq('user_id', user.id)
-                .gte('data_emissao', startDate.toISOString().split('T')[0])
-                .lte('data_emissao', endDate.toISOString().split('T')[0])
+            const dateField = input.period.dateField || DateFilterField.EMISSION_DATE
+
+            const { data: contas, error: contasError } = await applyDateFilterToContasQuery(
+                supabase,
+                user.id,
+                `id, valor_total, plano_conta_id, parcelas(id, valor_final, status, data_vencimento, data_pagamento)`,
+                dateField,
+                startDate,
+                endDate,
+            )
 
             if (contasError) {
                 console.error('Cash flow statement error (contas):', contasError)
@@ -1139,4 +1139,73 @@ function flattenTree(nodes: any[], result: any[] = []): any[] {
         }
     })
     return result
+}
+
+// Helper para aplicar filtro de data dinâmico
+async function applyDateFilterToContasQuery(
+    supabase: SupabaseClient,
+    userId: string,
+    selectQuery: string,
+    dateField: DateFilterField,
+    startDate: Date,
+    endDate: Date,
+    options: { order?: { column: string, ascending: boolean } } = {}
+): Promise<{ data: any[] | null; error: any }> {
+    // 1. Filtro por Data de Emissão (Padrão/Simples)
+    if (dateField === DateFilterField.EMISSION_DATE) {
+        let query = supabase
+            .from('contas')
+            .select(selectQuery)
+            .eq('user_id', userId)
+            .gte('data_emissao', startDate.toISOString().split('T')[0])
+            .lte('data_emissao', endDate.toISOString().split('T')[0])
+
+        if (options.order) {
+            query = query.order(options.order.column, { ascending: options.order.ascending })
+        }
+
+        return await query
+    }
+
+    // 2. Filtro por Vencimento ou Pagamento (Complexo - via Parcelas)
+    // Usando any para evitar erros de tipagem do PostgREST ao mudar o select
+    let parcelasQuery: any = supabase
+        .from('parcelas')
+        .select('conta_id, contas!inner(user_id)')
+        .eq('contas.user_id', userId)
+
+    if (dateField === DateFilterField.DUE_DATE) {
+        parcelasQuery = parcelasQuery
+            .gte('data_vencimento', startDate.toISOString().split('T')[0])
+            .lte('data_vencimento', endDate.toISOString().split('T')[0])
+    } else if (dateField === DateFilterField.PAYMENT_DATE) {
+        parcelasQuery = parcelasQuery
+            .gte('data_pagamento', startDate.toISOString().split('T')[0])
+            .lte('data_pagamento', endDate.toISOString().split('T')[0])
+            .eq('status', 'pago')
+    }
+
+    const { data: parcelas, error: parcelasError } = await parcelasQuery
+
+    if (parcelasError) {
+        return { data: null, error: parcelasError }
+    }
+
+    const contaIds = Array.from(new Set((parcelas as any[])?.map((p: any) => p.conta_id) || []))
+
+    if (contaIds.length === 0) {
+        return { data: [], error: null }
+    }
+
+    // Agora buscamos as contas completas
+    let query = supabase
+        .from('contas')
+        .select(selectQuery)
+        .in('id', contaIds)
+
+    if (options.order) {
+        query = query.order(options.order.column, { ascending: options.order.ascending })
+    }
+
+    return await query
 }

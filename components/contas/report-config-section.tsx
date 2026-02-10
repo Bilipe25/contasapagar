@@ -28,8 +28,11 @@ import {
     SortBy,
     SortOrder,
     CompanyMode,
+    DateFilterField,
+    ViewMode,
     REPORT_DEFINITIONS,
     DEFAULT_ACCOUNT_COLUMNS,
+    type ColumnConfig,
 } from '@/lib/reports/types'
 
 interface ReportConfigSectionProps {
@@ -198,6 +201,28 @@ export function ReportConfigSection({
                 onToggle={() => toggleSection('period')}
             >
                 <div className="space-y-4">
+                    <div>
+                        <Label className="text-sm font-medium">Data de Referência</Label>
+                        <Select
+                            value={config.period?.dateField || DateFilterField.EMISSION_DATE}
+                            onValueChange={(value) => updatePeriod({ dateField: value as DateFilterField })}
+                        >
+                            <SelectTrigger className="mt-2">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={DateFilterField.EMISSION_DATE}>Data de Emissão</SelectItem>
+                                <SelectItem value={DateFilterField.DUE_DATE}>Data de Vencimento</SelectItem>
+                                <SelectItem value={DateFilterField.PAYMENT_DATE}>Data de Pagamento</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Define qual data será considerada para filtrar os registros no período selecionado.
+                        </p>
+                    </div>
+
+                    <Separator />
+
                     <div>
                         <Label className="text-sm font-medium">Período de Análise</Label>
                         <RadioGroup
@@ -460,6 +485,63 @@ export function ReportConfigSection({
                     onToggle={() => toggleSection('columns')}
                 >
                     <div className="space-y-4">
+                        <div>
+                            <Label className="text-sm font-medium">Modo de Exibição</Label>
+                            <RadioGroup
+                                value={config.viewMode || ViewMode.BY_ACCOUNT}
+                                onValueChange={(value) => onChange({ ...config, viewMode: value as ViewMode })}
+                                className="mt-2 grid grid-cols-2 gap-4"
+                            >
+                                <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-accent/50 cursor-pointer">
+                                    <RadioGroupItem value={ViewMode.BY_ACCOUNT} id="view-account" />
+                                    <Label htmlFor="view-account" className="cursor-pointer font-normal">
+                                        Por Conta (Agrupado)
+                                    </Label>
+                                </div>
+                                <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-accent/50 cursor-pointer">
+                                    <RadioGroupItem value={ViewMode.BY_INSTALLMENT} id="view-installment" />
+                                    <Label htmlFor="view-installment" className="cursor-pointer font-normal">
+                                        Por Parcela (Individual)
+                                    </Label>
+                                </div>
+                            </RadioGroup>
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                            <Label className="text-sm font-medium">Colunas do Relatório</Label>
+                            <div className="mt-3 grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md">
+                                {(config.columns?.availableColumns || DEFAULT_ACCOUNT_COLUMNS).map((col) => {
+                                    const isSelected = config.columns?.selectedColumns?.includes(col.id)
+                                    return (
+                                        <div key={col.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`col-${col.id}`}
+                                                checked={isSelected}
+                                                onCheckedChange={(checked) => {
+                                                    const currentSelected = config.columns?.selectedColumns || []
+                                                    let newSelected
+                                                    if (checked) {
+                                                        newSelected = [...currentSelected, col.id]
+                                                    } else {
+                                                        newSelected = currentSelected.filter(id => id !== col.id)
+                                                    }
+                                                    updateColumns({ selectedColumns: newSelected })
+                                                }}
+                                                disabled={col.mandatory}
+                                            />
+                                            <Label htmlFor={`col-${col.id}`} className="cursor-pointer font-normal text-sm truncate" title={col.label}>
+                                                {col.label} {col.mandatory && <span className="text-xs text-muted-foreground">(Obrigatório)</span>}
+                                            </Label>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        <Separator />
+
                         <div>
                             <Label className="text-sm font-medium">Nível de Detalhamento</Label>
                             <RadioGroup

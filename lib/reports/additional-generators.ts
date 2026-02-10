@@ -4,6 +4,9 @@ import {
     generateReportFooter,
     generateTable,
     generateSummarySection,
+    generateCompactSummaryCards,
+    generateTableTotalsRow,
+    generateDistributionBars,
     formatCurrency,
     formatDate,
     formatPercent,
@@ -46,63 +49,121 @@ export function generateCategoryAnalysisPDF(
 
     const headerOptions: ReportHeaderOptions = {
         title: 'Análise por Categoria',
-        subtitle: 'Distribuição de Despesas',
+        subtitle: 'Distribuição de Despesas por Tipo',
         period: {
             start: data.period.startDate,
             end: data.period.endDate,
         },
         generatedAt: new Date(),
+        reportStyle: 'professional',
     }
 
-    const content = []
+    const content: any[] = []
     content.push(generateReportHeader(headerOptions))
 
-    // Summary
-    const summaryItems = [
-        { label: 'Total de Categorias', value: data.categories.length },
-        { label: 'Total de Contas', value: data.totals.totalAccounts },
-        { label: 'Valor Total', value: formatCurrency(data.totals.totalValue), highlight: true },
-        { label: 'Valor Pago', value: formatCurrency(data.totals.totalPaid) },
-        { label: 'Valor Pendente', value: formatCurrency(data.totals.totalPending) },
-    ]
-    const summarySection = generateSummarySection('Resumo Geral', summaryItems)
-    content.push(...(Array.isArray(summarySection) ? summarySection : [summarySection]))
+    // KPI Cards compactos
+    const totalContas = data.categories.reduce((sum, c) => sum + c.count, 0)
+    const paidPercent = data.totals.totalValue > 0
+        ? ((data.totals.totalPaid / data.totals.totalValue) * 100).toFixed(1) + '%'
+        : '0%'
+
+    content.push(generateCompactSummaryCards([
+        { label: 'CATEGORIAS', value: `${data.categories.length}`, icon: '📂' },
+        { label: 'VALOR TOTAL', value: formatCurrency(data.totals.totalValue), color: REPORT_COLORS.primary, icon: '💰' },
+        { label: 'VALOR PAGO', value: formatCurrency(data.totals.totalPaid), color: REPORT_COLORS.success, subtext: paidPercent, icon: '✅' },
+        { label: 'CONTAS', value: `${totalContas}`, subtext: `${data.categories.length} categorias`, icon: '📊' },
+    ]))
+
+    // Distribution Bars (top 5)
+    const sortedCategories = [...data.categories].sort((a, b) => b.totalValue - a.totalValue)
+    const top5 = sortedCategories.slice(0, 5)
+
+    if (top5.length > 0) {
+        content.push({
+            text: 'Distribuição - Top Categorias',
+            style: 'sectionTitle',
+            margin: [0, 5, 0, 8] as [number, number, number, number],
+        })
+
+        const barItems = top5.map(c => ({
+            label: c.category.nome || 'Sem Categoria',
+            value: c.totalValue,
+            percentage: data.totals.totalValue > 0
+                ? (c.totalValue / data.totals.totalValue) * 100
+                : 0,
+        }))
+
+        content.push(generateDistributionBars(barItems))
+    }
 
     // Category table
     content.push({
-        text: 'Análise por Categoria',
+        text: 'Detalhamento por Categoria',
         style: 'sectionTitle',
-        margin: [0, 20, 0, 10] as [number, number, number, number],
+        margin: [0, 10, 0, 8] as [number, number, number, number],
     })
 
-    const tableData = data.categories.map((c) => ({
+    const tableData = sortedCategories.map((c) => ({
         categoria: c.category.nome || 'Sem Categoria',
         contas: c.count,
         total: formatCurrency(c.totalValue),
         pago: formatCurrency(c.totalPaid),
         pendente: formatCurrency(c.totalPending),
-        percentual: formatPercent((c.totalValue / data.totals.totalValue) * 100),
+        percentual: data.totals.totalValue > 0
+            ? formatPercent((c.totalValue / data.totals.totalValue) * 100)
+            : '0%',
     }))
 
     const columns: TableColumn[] = [
         { header: 'Categoria', dataKey: 'categoria', width: '*', alignment: 'left' },
-        { header: 'Contas', dataKey: 'contas', width: 50, alignment: 'center' },
+        { header: 'Qtd', dataKey: 'contas', width: 35, alignment: 'center' },
         { header: 'Total', dataKey: 'total', width: 80, alignment: 'right' },
         { header: 'Pago', dataKey: 'pago', width: 80, alignment: 'right' },
         { header: 'Pendente', dataKey: 'pendente', width: 80, alignment: 'right' },
-        { header: '%', dataKey: 'percentual', width: 50, alignment: 'right' },
+        { header: '% Total', dataKey: 'percentual', width: 50, alignment: 'right' },
     ]
 
     content.push(generateTable(tableData, columns))
+
+    // Totals row
+    content.push({
+        table: {
+            widths: ['*', 35, 80, 80, 80, 50],
+            body: [
+                generateTableTotalsRow([
+                    { label: `TOTAL (${data.categories.length} categorias)`, value: '', colSpan: 2 },
+                    { value: formatCurrency(data.totals.totalValue) },
+                    { value: formatCurrency(data.totals.totalPaid) },
+                    { value: formatCurrency(data.totals.totalPending) },
+                    { value: '100%' },
+                ], 6),
+            ],
+        },
+        layout: 'noBorders',
+        margin: [0, 0, 0, 10] as [number, number, number, number],
+    })
+
+    // Notas personalizadas
+    if (config.additionalOptions?.customNotes) {
+        content.push({
+            text: 'Observações',
+            style: 'sectionTitle',
+            margin: [0, 15, 0, 5] as [number, number, number, number],
+        })
+        content.push({
+            text: config.additionalOptions.customNotes,
+            fontSize: 8,
+            color: REPORT_COLORS.textSecondary,
+            margin: [0, 0, 0, 10] as [number, number, number, number],
+        })
+    }
 
     return {
         ...docDef,
         content,
         pageOrientation: config.format.pdf?.orientation || 'portrait',
         pageSize: config.format.pdf?.pageSize || 'A4',
-        footer: config.format.pdf?.includePageNumbers
-            ? (currentPage, pageCount) => generateReportFooter(currentPage, pageCount)
-            : undefined,
+        footer: (currentPage, pageCount) => generateReportFooter(currentPage, pageCount),
     } as TDocumentDefinitions
 }
 

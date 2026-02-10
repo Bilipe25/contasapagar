@@ -21,7 +21,7 @@ import {
     generateCashFlowStatementPDF
 } from './accounting-generators'
 import { generateMonthlyDetailedExcel, generateSupplierConsolidatedExcel, generateCSV, generateGenericExcel } from './excel-generators'
-import type { ExportConfig } from './types'
+import { type ExportConfig, ViewMode } from './types'
 
 // Configure pdfMake fonts - using dynamic import for vfs_fonts
 if (typeof window !== 'undefined') {
@@ -308,7 +308,87 @@ async function exportExcel(data: any, config: ExportConfig) {
 
     switch (reportTypeStr) {
         case 'monthly_detailed':
-            blob = await generateMonthlyDetailedExcel(data, config)
+            // Custom logic for Monthly Detailed to support ViewMode and Columns
+            const isInstallmentView = config.viewMode === ViewMode.BY_INSTALLMENT
+            let excelItems: any[] = []
+
+            if (isInstallmentView) {
+                excelItems = data.contas.flatMap((conta: any) => {
+                    return (conta.parcelas || []).map((p: any) => ({
+                        ...p,
+                        conta_descricao: conta.descricao,
+                        fornecedor_nome: conta.fornecedores?.nome,
+                        categoria_nome: conta.tipos_despesa?.nome,
+                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
+                    }))
+                })
+                excelItems.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
+            } else {
+                excelItems = data.contas.map((conta: any) => ({
+                    ...conta,
+                    conta_descricao: conta.descricao,
+                    fornecedor_nome: conta.fornecedores?.nome,
+                    categoria_nome: conta.tipos_despesa?.nome,
+                    parcela_info: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
+                    valor_final: conta.valor_total,
+                    data_vencimento: conta.proxima_parcela?.data_vencimento
+                }))
+            }
+
+            // Define available columns matching DEFAULT_ACCOUNT_COLUMNS ids
+            const excelAvailableCols: Record<string, any> = {
+                'descricao': { header: 'Descrição', key: 'conta_descricao', width: 30 },
+                'fornecedor': { header: 'Fornecedor', key: 'fornecedor_nome', width: 25 },
+                'categoria': { header: 'Categoria', key: 'categoria_nome', width: 20 },
+                'valor_final': { header: 'Valor', key: 'valor_final', width: 15 },
+                'numero_parcela': { header: 'Parcela', key: 'parcela_info', width: 10 },
+                'status': { header: 'Status', key: 'status', width: 15 },
+                'data_vencimento': { header: 'Vencimento', key: 'data_vencimento', width: 15 },
+                'data_pagamento': { header: 'Pagamento', key: 'data_pagamento', width: 15 },
+                // aliases for backward compatibility if needed
+                'col-description': { header: 'Descrição', key: 'conta_descricao', width: 30 },
+            }
+
+            // Select columns
+            let excelColumns: any[] = []
+            if (config.columns?.selectedColumns && config.columns.selectedColumns.length > 0) {
+                excelColumns = config.columns.selectedColumns
+                    .map(colId => excelAvailableCols[colId])
+                    .filter(Boolean)
+            }
+
+            // Default columns
+            if (excelColumns.length === 0) {
+                excelColumns = [
+                    excelAvailableCols['descricao'],
+                    excelAvailableCols['fornecedor'],
+                    excelAvailableCols['categoria'],
+                    excelAvailableCols['valor_final'],
+                    excelAvailableCols['numero_parcela'],
+                    excelAvailableCols['status'],
+                    excelAvailableCols['data_vencimento']
+                ]
+            }
+
+            blob = await generateGenericExcel({
+                title: isInstallmentView ? 'Relatório Detalhado (Por Parcela)' : 'Relatório Detalhado (Por Conta)',
+                period: { startDate: data.period.startDate, endDate: data.period.endDate },
+                summary: [
+                    { label: 'Total de Registros', value: excelItems.length },
+                    { label: 'Valor Total', value: formatCurrency(data.totals.totalValue) },
+                ],
+                columns: excelColumns,
+                data: excelItems.map(item => {
+                    const mapped: any = {}
+                    excelColumns.forEach(col => {
+                        let val = item[col.key]
+                        if (col.key === 'valor_final') val = typeof val === 'number' ? val : 0
+                        if (col.key === 'data_vencimento' || col.key === 'data_pagamento') val = val ? formatDate(val) : '-'
+                        mapped[col.key] = val
+                    })
+                    return mapped
+                })
+            })
             break
 
         case 'supplier_consolidated':
@@ -602,16 +682,80 @@ async function exportCSV(data: any, config: ExportConfig) {
 
     switch (reportTypeStr) {
         case 'monthly_detailed':
-            headers = ['Descrição', 'Fornecedor', 'Categoria', 'Valor', 'Parcela', 'Status', 'Vencimento']
-            csvData = data.contas.map((conta: any) => ({
-                descrição: conta.descricao || '-',
-                fornecedor: conta.fornecedores?.nome || '-',
-                categoria: conta.tipos_despesa?.nome || '-',
-                valor: conta.valor_total,
-                parcela: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
-                status: conta.status,
-                vencimento: conta.proxima_parcela?.data_vencimento || '-',
-            }))
+            const isInstallmentViewCSV = config.viewMode === ViewMode.BY_INSTALLMENT
+            let csvItems: any[] = []
+
+            if (isInstallmentViewCSV) {
+                csvItems = data.contas.flatMap((conta: any) => {
+                    return (conta.parcelas || []).map((p: any) => ({
+                        ...p,
+                        conta_descricao: conta.descricao,
+                        fornecedor_nome: conta.fornecedores?.nome,
+                        categoria_nome: conta.tipos_despesa?.nome,
+                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
+                    }))
+                })
+                csvItems.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
+            } else {
+                csvItems = data.contas.map((conta: any) => ({
+                    ...conta,
+                    conta_descricao: conta.descricao,
+                    fornecedor_nome: conta.fornecedores?.nome,
+                    categoria_nome: conta.tipos_despesa?.nome,
+                    parcela_info: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
+                    valor_final: conta.valor_total,
+                    data_vencimento: conta.proxima_parcela?.data_vencimento
+                }))
+            }
+
+            // Define available columns matching DEFAULT_ACCOUNT_COLUMNS ids
+            const csvAvailableCols: Record<string, any> = {
+                'descricao': { header: 'Descrição', key: 'conta_descricao' },
+                'fornecedor': { header: 'Fornecedor', key: 'fornecedor_nome' },
+                'categoria': { header: 'Categoria', key: 'categoria_nome' },
+                'valor_final': { header: 'Valor', key: 'valor_final' },
+                'numero_parcela': { header: 'Parcela', key: 'parcela_info' },
+                'status': { header: 'Status', key: 'status' },
+                'data_vencimento': { header: 'Vencimento', key: 'data_vencimento' },
+                'data_pagamento': { header: 'Pagamento', key: 'data_pagamento' },
+            }
+
+            // Select columns
+            let csvColumns: any[] = []
+            if (config.columns?.selectedColumns && config.columns.selectedColumns.length > 0) {
+                csvColumns = config.columns.selectedColumns
+                    .map(colId => csvAvailableCols[colId])
+                    .filter(Boolean)
+            }
+
+            // Default columns
+            if (csvColumns.length === 0) {
+                csvColumns = [
+                    csvAvailableCols['descricao'],
+                    csvAvailableCols['fornecedor'],
+                    csvAvailableCols['categoria'],
+                    csvAvailableCols['valor_final'],
+                    csvAvailableCols['numero_parcela'],
+                    csvAvailableCols['status'],
+                    csvAvailableCols['data_vencimento']
+                ]
+            }
+
+            headers = csvColumns.map(c => c.header)
+            csvData = csvItems.map(item => {
+                const mapped: any = {}
+                csvColumns.forEach(col => {
+                    let val = item[col.key]
+                    // Format values for CSV? Usually raw is better, but consistency with "view" might key
+                    // Let's format dates at least
+                    if (col.key === 'data_vencimento' || col.key === 'data_pagamento') val = val ? formatDate(val) : '-'
+                    // Maybe numeric values should be kept as numbers for CSV? Or formatted?
+                    // Standard CSV export usually keeps raw numbers. But user asked for "Description, Supplier..." in view.
+                    // Let's keep it simple.
+                    mapped[col.header] = val
+                })
+                return mapped
+            })
             break
 
         case 'supplier_consolidated':
