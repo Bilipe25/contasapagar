@@ -346,7 +346,7 @@ export function ReportsExportDialog({ open, onOpenChange, currentFilters }: Repo
                     </div>
 
                     {/* Painel Direito - Configurações */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                         {selectedReport && selectedReportDef ? (
                             <>
                                 {/* Header do Relatório Selecionado */}
@@ -361,7 +361,7 @@ export function ReportsExportDialog({ open, onOpenChange, currentFilters }: Repo
                                 </div>
 
                                 {/* Configurações */}
-                                <ScrollArea className="flex-1">
+                                <ScrollArea className="flex-1 overflow-y-auto">
                                     <div className="p-6">
                                         <div className="flex items-center gap-2 mb-4">
                                             <Settings2 className="h-4 w-4 text-muted-foreground" />
