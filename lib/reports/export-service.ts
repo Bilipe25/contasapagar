@@ -65,14 +65,14 @@ async function exportPDF(data: any, config: ExportConfig) {
         case 'monthly_detailed':
             // Pass configuration to support dynamic columns
             docDefinition = await generatePDF({
-                contas: data.items || [], // data.items from backend
+                contas: data.contas || [], // Corrected from data.items
                 stats: {
-                    totalAPagar: data.summary?.total || 0,
-                    totalVencidas: data.summary?.overdue || 0,
-                    totalPago: data.summary?.paid || 0,
-                    quantidadePagas: data.summary?.paidCount || 0,
-                    totalJuros: data.summary?.interest || 0,
-                    totalDescontos: data.summary?.discount || 0
+                    totalAPagar: data.totals?.total || 0,
+                    totalVencidas: data.totals?.overdue || 0,
+                    totalPago: data.totals?.paid || 0,
+                    quantidadePagas: data.totals?.paidCount || 0,
+                    totalJuros: data.totals?.interest || 0,
+                    totalDescontos: data.totals?.discount || 0
                 },
                 periodo: (typeof data.period === 'string' ? data.period :
                     (data.period instanceof Date ? data.period.toISOString().slice(0, 7) :
