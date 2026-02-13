@@ -102,8 +102,11 @@ export async function generatePDF({ contas, stats, periodo, config, availableCol
             case 'descricao': return conta.descricao || 'Sem descrição'
             case 'fornecedor': return conta.fornecedores?.nome || '-'
             case 'categoria': return conta.tipos_despesa?.nome || '-'
-            case 'empresa': return conta.empresas?.nome_fantasia || conta.empresas?.razao_social || '-'
-            case 'vencimento': return formatDate(conta.data_vencimento || conta.proxima_parcela?.data_vencimento)
+            case 'empresa': {
+                const empresa = Array.isArray(conta.empresas) ? conta.empresas[0] : conta.empresas
+                return empresa?.nome_fantasia || empresa?.razao_social || '-'
+            }
+            case 'vencimento': return formatDate(conta.data_vencimento || conta.proxima_parcela?.data_vencimento || conta.parcelas?.[0]?.data_vencimento)
             case 'data_emissao': return formatDate(conta.data_emissao)
             case 'data_pagamento': return formatDate(conta.data_pagamento)
             case 'competencia': return conta.data_competencia ? formatDate(conta.data_competencia) : '-'

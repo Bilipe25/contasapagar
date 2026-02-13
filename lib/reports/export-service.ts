@@ -67,9 +67,9 @@ async function exportPDF(data: any, config: ExportConfig) {
             docDefinition = await generatePDF({
                 contas: data.contas || [], // Corrected from data.items
                 stats: {
-                    totalAPagar: data.totals?.total || 0,
+                    totalAPagar: data.totals?.totalValue || 0,
                     totalVencidas: data.totals?.overdue || 0,
-                    totalPago: data.totals?.paid || 0,
+                    totalPago: data.totals?.totalPaid || 0,
                     quantidadePagas: data.totals?.paidCount || 0,
                     totalJuros: data.totals?.interest || 0,
                     totalDescontos: data.totals?.discount || 0
