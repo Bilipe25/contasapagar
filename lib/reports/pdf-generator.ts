@@ -102,18 +102,24 @@ export async function generatePDF({ contas, stats, periodo, config, availableCol
             case 'descricao': return conta.descricao || 'Sem descrição'
             case 'fornecedor': return conta.fornecedores?.nome || '-'
             case 'categoria': return conta.tipos_despesa?.nome || '-'
-            case 'empresa': return conta.empresas?.nome_fantasia || '-'
-            case 'vencimento': return formatDate(conta.data_vencimento)
+            case 'empresa': return conta.empresas?.nome_fantasia || conta.empresas?.razao_social || '-'
+            case 'vencimento': return formatDate(conta.data_vencimento || conta.proxima_parcela?.data_vencimento)
             case 'data_emissao': return formatDate(conta.data_emissao)
+            case 'data_pagamento': return formatDate(conta.data_pagamento)
             case 'competencia': return conta.data_competencia ? formatDate(conta.data_competencia) : '-'
-            case 'valor_original': return formatCurrency(conta.valor)
-            case 'valor_final': return formatCurrency(conta.valor_final)
+            case 'valor_original': return formatCurrency(conta.valor || 0)
+            case 'valor_final': return formatCurrency(conta.valor_final ?? conta.valor_total ?? conta.valor ?? 0)
             case 'valor_pago': return formatCurrency(conta.valor_pago || 0)
-            case 'juros': return formatCurrency(conta.juros || 0)
-            case 'descontos': return formatCurrency(conta.descontos || 0)
+            case 'juros': return formatCurrency(conta.juros || conta.total_juros || 0)
+            case 'descontos': return formatCurrency(conta.descontos || conta.total_descontos || 0)
             case 'status': return (conta.status || '-').toUpperCase()
             case 'banco': return conta.bancos?.nome || '-'
             case 'observacoes': return conta.observacoes || '-'
+            case 'numero_parcela': {
+                const atual = conta.parcela_atual || conta.parcelas?.length || 1
+                const total = conta.total_parcelas || conta.parcelas?.length || 1
+                return `${atual}/${total}`
+            }
             default: return '-'
         }
     }
