@@ -28,11 +28,16 @@ export function parseLocalDate(date: string | Date): Date {
 
 export function formatDate(date: string | Date): string {
   const d = parseLocalDate(date)
+  // Verifica se a data é válida
+  if (isNaN(d.getTime())) return '-'
   return new Intl.DateTimeFormat('pt-BR').format(d)
 }
 
 export function formatDateRelative(date: string | Date): string {
   const d = parseLocalDate(date)
+  // Verifica se a data é válida
+  if (isNaN(d.getTime())) return '-'
+
   const hoje = new Date()
   hoje.setHours(12, 0, 0, 0) // Normaliza para meio-dia
   const diffTime = d.getTime() - hoje.getTime()
