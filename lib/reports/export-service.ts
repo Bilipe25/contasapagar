@@ -74,7 +74,10 @@ async function exportPDF(data: any, config: ExportConfig) {
                     totalJuros: data.summary?.interest || 0,
                     totalDescontos: data.summary?.discount || 0
                 },
-                periodo: data.period || config.period.startDate?.toISOString().slice(0, 7) || new Date().toISOString().slice(0, 7),
+                periodo: (typeof data.period === 'string' ? data.period :
+                    (data.period instanceof Date ? data.period.toISOString().slice(0, 7) :
+                        (config.period.startDate ? config.period.startDate.toISOString().slice(0, 7) :
+                            new Date().toISOString().slice(0, 7)))),
                 config: config,
                 availableColumns: config.columns?.availableColumns
             })

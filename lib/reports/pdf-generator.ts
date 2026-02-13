@@ -71,7 +71,8 @@ async function initPdfMake() {
 export async function generatePDF({ contas, stats, periodo, config, availableColumns }: GeneratePDFParams) {
     const pdfMake = await initPdfMake()
 
-    const [year, month] = periodo.split('-')
+    const safePeriodo = typeof periodo === 'string' ? periodo : new Date().toISOString().slice(0, 7)
+    const [year, month] = safePeriodo.split('-')
     const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', {
         month: 'long',
         year: 'numeric',
