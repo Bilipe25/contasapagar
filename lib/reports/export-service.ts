@@ -427,53 +427,59 @@ async function exportExcel(data: any, config: ExportConfig) {
             })
             break
 
-        case 'cash_flow_projection':
+        case 'cash_flow_projection': {
+            let saldoAcumulado = 0
+            const projRows = (data.projection || []).map((p: any) => {
+                saldoAcumulado += (p.totalValue || 0)
+                return {
+                    mes: p.month || '-',
+                    qtd: p.count || 0,
+                    valor: p.totalValue || 0,
+                    saldo: saldoAcumulado,
+                }
+            })
             blob = await generateGenericExcel({
                 title: 'Projeção de Fluxo de Caixa',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
                     { label: 'Total Projetado', value: formatCurrency(data.totals?.totalProjected || 0) },
+                    { label: 'Parcelas', value: data.totals?.count || 0 },
                 ],
                 columns: [
-                    { header: 'Data', key: 'date', width: 15 },
-                    { header: 'Entradas', key: 'receita', width: 20 },
-                    { header: 'Saídas', key: 'despesa', width: 20 },
+                    { header: 'Mês', key: 'mes', width: 14 },
+                    { header: 'Parcelas', key: 'qtd', width: 12 },
+                    { header: 'Valor', key: 'valor', width: 20 },
                     { header: 'Saldo Acumulado', key: 'saldo', width: 20 },
                 ],
-                data: data.projection.map((p: any) => ({
-                    date: formatDate(p.date),
-                    receita: p.receita,
-                    despesa: p.despesa,
-                    saldo: p.saldo_acumulado,
-                }))
+                data: projRows
             })
             break
+        }
 
         case 'overdue_report':
             blob = await generateGenericExcel({
                 title: 'Relatório de Contas Vencidas',
-                period: { startDate: data.period.startDate, endDate: data.period.endDate },
+                period: { startDate: data.asOfDate, endDate: data.asOfDate },
                 summary: [
-                    { label: 'Total de Contas', value: data.totals.count },
-                    { label: 'Valor Corrigido', value: formatCurrency(data.totals.totalCorrected) },
+                    { label: 'Total de Parcelas', value: data.totals?.count || 0 },
+                    { label: 'Valor Total Vencido', value: formatCurrency(data.totals?.total || 0) },
+                    { label: 'Data Referência', value: formatDate(data.asOfDate) },
                 ],
                 columns: [
-                    { header: 'Vencimento', key: 'vencimento', width: 15 },
-                    { header: 'Dias Atraso', key: 'dias', width: 10 },
-                    { header: 'Descrição', key: 'descricao', width: 30 },
-                    { header: 'Fornecedor', key: 'fornecedor', width: 25 },
-                    { header: 'Valor Original', key: 'valor', width: 20 },
-                    { header: 'Encargos', key: 'encargos', width: 15 },
-                    { header: 'Valor Corrigido', key: 'valor_corr', width: 20 },
+                    { header: 'Vencimento', key: 'vencimento', width: 14 },
+                    { header: 'Dias Atraso', key: 'dias', width: 12 },
+                    { header: 'Descrição', key: 'descricao', width: 28 },
+                    { header: 'Fornecedor', key: 'fornecedor', width: 22 },
+                    { header: 'Valor', key: 'valor', width: 16 },
+                    { header: 'Status', key: 'status', width: 12 },
                 ],
-                data: data.items.map((i: any) => ({
+                data: (data.overdue || []).map((i: any) => ({
                     vencimento: formatDate(i.data_vencimento),
-                    dias: i.dias_atraso,
-                    descricao: i.descricao,
-                    fornecedor: i.fornecedores?.nome || 'N/A',
-                    valor: i.valor_final,
-                    encargos: (i.valor_corrigido || i.valor_final) - i.valor_final,
-                    valor_corr: i.valor_corrigido || i.valor_final,
+                    dias: i.daysOverdue || 0,
+                    descricao: i.contas?.descricao || '-',
+                    fornecedor: i.contas?.fornecedores?.nome || '-',
+                    valor: i.valor_final || 0,
+                    status: i.status || '-',
                 }))
             })
             break
@@ -691,29 +697,32 @@ async function exportExcel(data: any, config: ExportConfig) {
             break
         }
 
-        case 'tax_obligations':
+        case 'tax_obligations': {
+            const taxTotal = (data.obligations || []).reduce((s: number, c: any) => s + (c.valor_total || 0), 0)
             blob = await generateGenericExcel({
                 title: 'Obrigações Fiscais',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Total Impostos', value: formatCurrency(data.summary.totalTaxes) },
+                    { label: 'Total de Registros', value: (data.obligations || []).length },
+                    { label: 'Valor Total', value: formatCurrency(taxTotal) },
                 ],
                 columns: [
-                    { header: 'Imposto', key: 'imposto', width: 20 },
-                    { header: 'Conta Origem', key: 'conta', width: 30 },
-                    { header: 'Vencimento', key: 'vencimento', width: 15 },
-                    { header: 'Valor Base', key: 'base', width: 20 },
-                    { header: 'Valor Imposto', key: 'valor', width: 20 },
+                    { header: 'Data Emissão', key: 'emissao', width: 14 },
+                    { header: 'Descrição', key: 'descricao', width: 28 },
+                    { header: 'Fornecedor', key: 'fornecedor', width: 22 },
+                    { header: 'Categoria', key: 'categoria', width: 18 },
+                    { header: 'Valor Total', key: 'valor', width: 16 },
                 ],
-                data: data.items.map((i: any) => ({
-                    imposto: i.taxType,
-                    conta: i.sourceAccount,
-                    vencimento: formatDate(i.dueDate),
-                    base: i.baseAmount,
-                    valor: i.taxAmount,
+                data: (data.obligations || []).map((c: any) => ({
+                    emissao: formatDate(c.data_emissao),
+                    descricao: c.descricao || '-',
+                    fornecedor: c.fornecedores?.nome || '-',
+                    categoria: c.tipos_despesa?.nome || '-',
+                    valor: c.valor_total || 0,
                 }))
             })
             break
+        }
 
         case 'payment_audit':
             blob = await generateGenericExcel({
@@ -743,6 +752,34 @@ async function exportExcel(data: any, config: ExportConfig) {
                 }))
             })
             break
+
+        case 'cash_flow_statement': {
+            const cfsTotal = (data.accounts || []).reduce((s: number, a: any) => s + (a.total || 0), 0)
+            blob = await generateGenericExcel({
+                title: 'Demonstrativo por Fluxo de Caixa',
+                period: { startDate: data.period.startDate, endDate: data.period.endDate },
+                summary: [
+                    { label: 'Receitas', value: formatCurrency(data.totals?.receitas || 0) },
+                    { label: 'Despesas', value: formatCurrency(data.totals?.despesas || 0) },
+                    { label: 'Resultado', value: formatCurrency((data.totals?.receitas || 0) - (data.totals?.despesas || 0)) },
+                ],
+                columns: [
+                    { header: 'Código', key: 'codigo', width: 12 },
+                    { header: 'Descrição', key: 'descricao', width: 35 },
+                    { header: 'Tipo', key: 'tipo', width: 12 },
+                    { header: 'Nível', key: 'nivel', width: 8 },
+                    { header: 'Valor', key: 'valor', width: 18 },
+                ],
+                data: (data.accounts || []).filter((a: any) => a.total > 0).map((a: any) => ({
+                    codigo: a.codigo || '-',
+                    descricao: a.descricao || '-',
+                    tipo: a.tipo || '-',
+                    nivel: a.nivel || 1,
+                    valor: a.total || 0,
+                }))
+            })
+            break
+        }
 
         default:
             throw new Error(`Gerador de Excel não implementado para: ${config.reportType}`)
@@ -861,26 +898,30 @@ async function exportCSV(data: any, config: ExportConfig) {
             }))
             break
 
-        case 'cash_flow_projection':
-            headers = ['Data', 'Entradas', 'Saídas', 'Saldo Acumulado']
-            csvData = data.projection.map((p: any) => ({
-                data: formatDate(p.date),
-                entradas: p.receita,
-                saidas: p.despesa,
-                saldo_acumulado: p.saldo_acumulado,
-            }))
+        case 'cash_flow_projection': {
+            headers = ['Mês', 'Parcelas', 'Valor', 'Saldo Acumulado']
+            let csvSaldo = 0
+            csvData = (data.projection || []).map((p: any) => {
+                csvSaldo += (p.totalValue || 0)
+                return {
+                    mes: p.month || '-',
+                    parcelas: p.count || 0,
+                    valor: p.totalValue || 0,
+                    saldo_acumulado: csvSaldo,
+                }
+            })
             break
+        }
 
         case 'overdue_report':
-            headers = ['Vencimento', 'Dias Atraso', 'Descrição', 'Fornecedor', 'Valor Original', 'Encargos', 'Valor Corrigido']
-            csvData = data.items.map((i: any) => ({
+            headers = ['Vencimento', 'Dias Atraso', 'Descrição', 'Fornecedor', 'Valor', 'Status']
+            csvData = (data.overdue || []).map((i: any) => ({
                 vencimento: formatDate(i.data_vencimento),
-                dias_atraso: i.dias_atraso,
-                descricao: i.descricao,
-                fornecedor: i.fornecedores?.nome || 'N/A',
-                valor_original: i.valor_final,
-                encargos: (i.valor_corrigido || i.valor_final) - i.valor_final,
-                valor_corrigido: i.valor_corrigido || i.valor_final,
+                dias_atraso: i.daysOverdue || 0,
+                descricao: i.contas?.descricao || '-',
+                fornecedor: i.contas?.fornecedores?.nome || '-',
+                valor: i.valor_final || 0,
+                status: i.status || '-',
             }))
             break
 
@@ -983,13 +1024,13 @@ async function exportCSV(data: any, config: ExportConfig) {
             break
 
         case 'tax_obligations':
-            headers = ['Imposto', 'Conta Origem', 'Vencimento', 'Valor Base', 'Valor Imposto']
-            csvData = data.items.map((i: any) => ({
-                imposto: i.taxType,
-                conta_origem: i.sourceAccount,
-                vencimento: formatDate(i.dueDate),
-                valor_base: i.baseAmount,
-                valor_imposto: i.taxAmount,
+            headers = ['Data Emissão', 'Descrição', 'Fornecedor', 'Categoria', 'Valor Total']
+            csvData = (data.obligations || []).map((c: any) => ({
+                data_emissao: formatDate(c.data_emissao),
+                descricao: c.descricao || '-',
+                fornecedor: c.fornecedores?.nome || '-',
+                categoria: c.tipos_despesa?.nome || '-',
+                valor_total: c.valor_total || 0,
             }))
             break
 
@@ -1003,6 +1044,17 @@ async function exportCSV(data: any, config: ExportConfig) {
                 empresa: p.contas?.empresas?.nome_fantasia || '-',
                 banco: p.contas?.bancos?.nome || '-',
                 valor_pago: p.valor_final || 0,
+            }))
+            break
+
+        case 'cash_flow_statement':
+            headers = ['Código', 'Descrição', 'Tipo', 'Nível', 'Valor']
+            csvData = (data.accounts || []).filter((a: any) => a.total > 0).map((a: any) => ({
+                codigo: a.codigo || '-',
+                descricao: a.descricao || '-',
+                tipo: a.tipo || '-',
+                nivel: a.nivel || 1,
+                valor: a.total || 0,
             }))
             break
 
@@ -1046,6 +1098,7 @@ function getReportFilename(config: ExportConfig, extension: string): string {
         interest_discount: 'juros-descontos',
         consolidated_multi_company: 'consolidado-multi-empresa',
         payment_audit: 'auditoria-pagamentos',
+        cash_flow_statement: 'demonstrativo-caixa',
     }
 
     const reportName = reportNames[String(config.reportType)] || 'relatorio'
