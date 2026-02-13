@@ -19,6 +19,8 @@ interface GeneratePDFParams {
         totalDescontos?: number
     }
     periodo: string
+    config?: any
+    availableColumns?: any[]
 }
 
 interface GenerateAnnualPDFParams {
@@ -66,7 +68,7 @@ async function initPdfMake() {
     return pdfMake
 }
 
-export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams) {
+export async function generatePDF({ contas, stats, periodo, config, availableColumns }: GeneratePDFParams) {
     const pdfMake = await initPdfMake()
 
     const [year, month] = periodo.split('-')
@@ -75,7 +77,58 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
         year: 'numeric',
     })
 
+    // Determine columns to display
+    const selectedColIds = config?.columns?.selectedColumns || ['descricao', 'fornecedor', 'categoria', 'vencimento', 'valor_final']
+
+    const allColumns = availableColumns || []
+
+    // Map IDs to column definitions
+    const displayColumns = selectedColIds
+        .map((id: string) => allColumns.find((c: any) => c.id === id))
+        .filter(Boolean)
+
+    // Build Table Header
+    const tableHeader = displayColumns.map((col: any) => ({
+        text: col.label,
+        bold: true,
+        fontSize: 9, // Slightly smaller font for more columns
+        alignment: ['valor_original', 'valor_final', 'valor_pago', 'juros', 'descontos'].includes(col.id) ? 'right' : 'left'
+    }))
+
+    // Helper to get value for column
+    const getValueForColumn = (conta: any, colId: string) => {
+        switch (colId) {
+            case 'descricao': return conta.descricao || 'Sem descrição'
+            case 'fornecedor': return conta.fornecedores?.nome || '-'
+            case 'categoria': return conta.tipos_despesa?.nome || '-'
+            case 'empresa': return conta.empresas?.nome_fantasia || '-'
+            case 'vencimento': return formatDate(conta.data_vencimento)
+            case 'data_emissao': return formatDate(conta.data_emissao)
+            case 'competencia': return conta.data_competencia ? formatDate(conta.data_competencia) : '-'
+            case 'valor_original': return formatCurrency(conta.valor)
+            case 'valor_final': return formatCurrency(conta.valor_final)
+            case 'valor_pago': return formatCurrency(conta.valor_pago || 0)
+            case 'juros': return formatCurrency(conta.juros || 0)
+            case 'descontos': return formatCurrency(conta.descontos || 0)
+            case 'status': return (conta.status || '-').toUpperCase()
+            case 'banco': return conta.bancos?.nome || '-'
+            case 'observacoes': return conta.observacoes || '-'
+            default: return '-'
+        }
+    }
+
+    // Build Body
+    const tableBody = contas.map((conta) => {
+        return displayColumns.map((col: any) => ({
+            text: getValueForColumn(conta, col.id),
+            fontSize: 8,
+            alignment: ['valor_original', 'valor_final', 'valor_pago', 'juros', 'descontos'].includes(col.id) ? 'right' : 'left'
+        }))
+    })
+
     const docDefinition: TDocumentDefinitions = {
+        // Switch to landscape if many columns
+        pageOrientation: displayColumns.length > 6 ? 'landscape' : 'portrait',
         content: [
             {
                 text: 'Relatório de Contas a Pagar',
@@ -196,22 +249,10 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
             {
                 table: {
                     headerRows: 1,
-                    widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+                    widths: Array(displayColumns.length).fill((100 / displayColumns.length) + '%'), // Percentage widths for better distribution
                     body: [
-                        [
-                            { text: 'Descrição', bold: true },
-                            { text: 'Fornecedor', bold: true },
-                            { text: 'Categoria', bold: true },
-                            { text: 'Vencimento', bold: true },
-                            { text: 'Valor', bold: true },
-                        ],
-                        ...contas.map((conta) => [
-                            conta.descricao || 'Sem descrição',
-                            conta.fornecedores?.nome || '-',
-                            conta.tipos_despesa?.nome || '-',
-                            formatDate(conta.data_vencimento),
-                            formatCurrency(conta.valor_final),
-                        ]),
+                        tableHeader as TableCell[],
+                        ...tableBody as TableCell[][]
                     ],
                 },
                 layout: {
@@ -234,7 +275,7 @@ export async function generatePDF({ contas, stats, periodo }: GeneratePDFParams)
         defaultStyle: { fontSize: 10 },
     }
 
-    pdfMake.createPdf(docDefinition).download(`relatorio-${periodo}.pdf`)
+    return docDefinition
 }
 
 export async function generateAnnualPDF({ meses, totais, ano }: GenerateAnnualPDFParams) {

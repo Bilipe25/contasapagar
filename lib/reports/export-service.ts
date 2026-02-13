@@ -3,7 +3,8 @@
 import pdfMake from 'pdfmake/build/pdfmake'
 import type { TDocumentDefinitions } from 'pdfmake/interfaces'
 import { formatCurrency, formatDate } from './pdf-helpers'
-import { generateMonthlyDetailedPDF, generateSupplierConsolidatedPDF } from './report-generators'
+import { generatePDF } from './pdf-generator'
+import { generateSupplierConsolidatedPDF } from './report-generators'
 import {
     generateCategoryAnalysisPDF,
     generateDREPDF,
@@ -62,7 +63,21 @@ async function exportPDF(data: any, config: ExportConfig) {
 
     switch (reportTypeStr) {
         case 'monthly_detailed':
-            docDefinition = generateMonthlyDetailedPDF(data, config)
+            // Pass configuration to support dynamic columns
+            docDefinition = await generatePDF({
+                contas: data.items || [], // data.items from backend
+                stats: {
+                    totalAPagar: data.summary?.total || 0,
+                    totalVencidas: data.summary?.overdue || 0,
+                    totalPago: data.summary?.paid || 0,
+                    quantidadePagas: data.summary?.paidCount || 0,
+                    totalJuros: data.summary?.interest || 0,
+                    totalDescontos: data.summary?.discount || 0
+                },
+                periodo: data.period || config.period.startDate?.toISOString().slice(0, 7) || new Date().toISOString().slice(0, 7),
+                config: config,
+                availableColumns: config.columns?.availableColumns
+            })
             break
 
         case 'supplier_consolidated':
