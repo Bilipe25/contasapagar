@@ -73,73 +73,80 @@ async function exportPDF(data: any, config: ExportConfig) {
             docDefinition = generateCategoryAnalysisPDF(data, config)
             break
 
-        case 'accounting_statement':
-            // Map tree structure to simple DRE format
-            // reports.ts returns 'statement' which is a tree.
-            // valid DRE separates Revenues and Expenses. Since this is AP (Contas a Pagar), mostly Expenses.
-            const dreData = {
-                period: data.period,
-                revenues: [], // No revenue data in AP module usually
-                expenses: [],
-                summary: {
-                    totalRevenues: 0,
-                    totalExpenses: 0,
-                    netResult: 0
-                }
-            }
-
-            // Flatten tree for expenses
-            const traverseTree = (nodes: any[], target: any[]) => {
-                nodes.forEach(node => {
-                    if (node.valor > 0) { // Only show active accounts
-                        target.push({
-                            categoria: node.descricao,
-                            valor: node.total // Use calculated total
-                        });
+        case 'accounting_statement': {
+            // Flatten the hierarchical tree preserving level and code
+            const dreEntries: Array<{
+                codigo: string; descricao: string; valor: number;
+                total: number; nivel: number; isSynthetic: boolean
+            }> = []
+            const flattenDreTree = (nodes: any[]) => {
+                const sorted = [...nodes].sort((a: any, b: any) =>
+                    (a.codigo || '').localeCompare(b.codigo || '')
+                )
+                sorted.forEach((node: any) => {
+                    const hasChildren = node.children && node.children.length > 0
+                    // Only include entries with value or that are synthetic parents
+                    if (node.total > 0 || hasChildren) {
+                        dreEntries.push({
+                            codigo: node.codigo || '000',
+                            descricao: node.descricao || 'Sem Descrição',
+                            valor: node.valor || 0,
+                            total: node.total || 0,
+                            nivel: node.nivel || 1,
+                            isSynthetic: hasChildren,
+                        })
                     }
-                    if (node.children && node.children.length > 0) {
-                        traverseTree(node.children, target);
+                    if (hasChildren) {
+                        flattenDreTree(node.children)
                     }
                 })
             }
 
             if (data.statement) {
-                traverseTree(data.statement, dreData.expenses)
-                // Remove duplicates if tree traversal added parents and children? 
-                // Actually reports.ts 'total' includes children. 
-                // For a flat list, we probably only want leaves or top level?
-                // additional-generators.ts just lists them.
-                // Let's use top level roots for simplicity.
-                dreData.expenses = data.statement.map((root: any) => ({
-                    categoria: root.descricao,
-                    valor: root.total
-                }))
+                flattenDreTree(data.statement)
             }
 
-            dreData.summary.totalExpenses = dreData.expenses.reduce((sum: number, e: any) => sum + e.valor, 0)
-            dreData.summary.netResult = -dreData.summary.totalExpenses
+            const totalExpenses = (data.statement || []).reduce(
+                (sum: number, root: any) => sum + (root.total || 0), 0
+            )
+
+            const dreData = {
+                period: data.period,
+                entries: dreEntries,
+                summary: {
+                    totalExpenses,
+                    netResult: -totalExpenses,
+                }
+            }
 
             docDefinition = generateDREPDF(dreData, config)
             break
+        }
 
-        case 'financial_performance':
-            // Map available metrics to required structure
+        case 'financial_performance': {
+            // Pass real backend data directly
             const financialData = {
                 period: data.period,
                 metrics: {
-                    paymentOnTime: 0, // Not available in current query
-                    latePayments: 0, // Not available
-                    averageDelay: 0, // Not available
-                    cashFlowHealth: 'N/A'
+                    total: data.metrics?.total || 0,
+                    count: data.metrics?.count || 0,
+                    average: data.metrics?.average || 0,
                 },
-                timeline: (data.trend || []).map((t: any) => ({
-                    month: formatDate(t.date).substring(3), // dd/MM/yyyy -> MM/yyyy
-                    paid: t.value || 0, // Assuming all emitted were paid/will be paid involved
-                    pending: 0
-                }))
+                topCategories: (data.topCategories || []).map((c: any) => ({
+                    category: c.category || 'Sem Categoria',
+                    total: c.total || 0,
+                    count: c.count || 0,
+                })),
+                topSuppliers: (data.topSuppliers || []).map((s: any) => ({
+                    supplier: s.supplier || 'Sem Fornecedor',
+                    total: s.total || 0,
+                    count: s.count || 0,
+                })),
+                trend: data.trend || [],
             }
             docDefinition = generateFinancialPerformancePDF(financialData, config)
             break
+        }
 
         case 'analytical_ledger':
             // Map data from reports.ts to match generator interface
@@ -189,7 +196,9 @@ async function exportPDF(data: any, config: ExportConfig) {
                     totalDebitBalance: 0,
                     totalCreditBalance: 0
                 },
-                accounts: (data.balances || []).map((b: any) => {
+                accounts: (data.balances || []).filter((b: any) =>
+                    b.previousBalance !== 0 || b.debits !== 0 || b.credits !== 0 || b.finalBalance !== 0
+                ).map((b: any) => {
                     // reports.ts "balances" structure: { account: {}, previousBalance, debits, credits, finalBalance }
                     // It treats everything as debits (expenses) currently
                     const debit = b.debits || 0
@@ -217,9 +226,7 @@ async function exportPDF(data: any, config: ExportConfig) {
             docDefinition = generateTrialBalancePDF(trialData, config)
             break
 
-        case 'financial_performance':
-            docDefinition = generateFinancialPerformancePDF(data, config)
-            break
+        // duplicate financial_performance case removed
 
         case 'interest_discount':
             // Map data for Interest/Discount
@@ -471,130 +478,198 @@ async function exportExcel(data: any, config: ExportConfig) {
             })
             break
 
-        case 'accounting_statement': // DRE
-            const dreData = [
-                ...(data.revenues || []).map((r: any) => ({ tipo: 'Receita', descricao: r.descricao, valor: r.valor })),
-                ...(data.expenses || []).map((e: any) => ({ tipo: 'Despesa', descricao: e.categoria, valor: e.valor * -1 }))
-            ]
+        case 'accounting_statement': { // DRE
+            const excelDreRows: any[] = []
+            const flattenForExcel = (nodes: any[]) => {
+                const sorted = [...nodes].sort((a: any, b: any) =>
+                    (a.codigo || '').localeCompare(b.codigo || '')
+                )
+                sorted.forEach((node: any) => {
+                    const hasChildren = node.children && node.children.length > 0
+                    if (node.total > 0 || hasChildren) {
+                        excelDreRows.push({
+                            codigo: node.codigo || '000',
+                            nivel: node.nivel || 1,
+                            tipo: hasChildren ? 'Sintética' : 'Analítica',
+                            descricao: node.descricao || 'Sem Descrição',
+                            valor: hasChildren ? node.total : node.valor,
+                        })
+                    }
+                    if (hasChildren) flattenForExcel(node.children)
+                })
+            }
+            if (data.statement) flattenForExcel(data.statement)
+
+            const totalDre = (data.statement || []).reduce(
+                (s: number, r: any) => s + (r.total || 0), 0
+            )
             blob = await generateGenericExcel({
-                title: 'DRE - Demonstrativo de Resultados',
+                title: 'DRE — Demonstrativo de Despesas do Exercício',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Resultado Líquido', value: formatCurrency(data.summary.netResult) },
+                    { label: 'Total de Despesas', value: formatCurrency(totalDre) },
+                    { label: 'Resultado Líquido', value: formatCurrency(-totalDre) },
                 ],
                 columns: [
-                    { header: 'Tipo', key: 'tipo', width: 15 },
+                    { header: 'Código', key: 'codigo', width: 12 },
+                    { header: 'Nível', key: 'nivel', width: 8 },
+                    { header: 'Tipo', key: 'tipo', width: 12 },
                     { header: 'Descrição', key: 'descricao', width: 40 },
-                    { header: 'Valor', key: 'valor', width: 20 },
+                    { header: 'Valor', key: 'valor', width: 18 },
                 ],
-                data: dreData
+                data: excelDreRows
             })
             break
+        }
 
         case 'financial_performance':
             blob = await generateGenericExcel({
                 title: 'Performance Financeira',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Pagamentos em Dia', value: `${data.metrics.paymentOnTime}%` },
-                    { label: 'Atraso Médio', value: `${data.metrics.averageDelay.toFixed(1)} dias` },
+                    { label: 'Total de Despesas', value: formatCurrency(data.metrics?.total || 0) },
+                    { label: 'Quantidade de Contas', value: data.metrics?.count || 0 },
+                    { label: 'Ticket Médio', value: formatCurrency(data.metrics?.average || 0) },
                 ],
                 columns: [
-                    { header: 'Mês', key: 'month', width: 20 },
-                    { header: 'Total Pago', key: 'paid', width: 20 },
-                    { header: 'Total Pendente', key: 'pending', width: 20 },
+                    { header: 'Data', key: 'data', width: 14 },
+                    { header: 'Valor', key: 'valor', width: 20 },
                 ],
-                data: data.timeline.map((t: any) => ({
-                    month: t.month,
-                    paid: t.paid,
-                    pending: t.pending,
+                data: (data.trend || []).map((t: any) => ({
+                    data: formatDate(t.date),
+                    valor: t.value || 0,
                 }))
             })
             break
 
-        case 'analytical_ledger':
+        case 'analytical_ledger': {
+            // Achatar data.ledger (agrupado por conta) em linhas individuais
+            const ledgerRows: any[] = []
+            let totalLedgerRecords = 0
+                ; (data.ledger || []).forEach((group: any) => {
+                    const codigo = group.plano_conta?.codigo || '000'
+                    const contaName = group.plano_conta?.descricao || 'Sem Classificação'
+                        ; (group.items || []).forEach((item: any) => {
+                            totalLedgerRecords++
+                            ledgerRows.push({
+                                data: formatDate(item.data_emissao),
+                                codigo,
+                                conta: contaName,
+                                historico: item.descricao || 'Sem descrição',
+                                fornecedor: item.fornecedores?.nome || '-',
+                                debito: item.valor_final || 0,
+                                credito: 0,
+                            })
+                        })
+                })
             blob = await generateGenericExcel({
                 title: 'Razão Analítico',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Total de Registros', value: data.records.length },
+                    { label: 'Total de Lançamentos', value: totalLedgerRecords },
+                    { label: 'Contas Contábeis', value: (data.ledger || []).length },
                 ],
                 columns: [
-                    { header: 'Data', key: 'data', width: 15 },
-                    { header: 'Conta', key: 'conta', width: 25 },
-                    { header: 'Histórico', key: 'historico', width: 40 },
+                    { header: 'Data', key: 'data', width: 14 },
+                    { header: 'Código', key: 'codigo', width: 10 },
+                    { header: 'Conta Contábil', key: 'conta', width: 25 },
+                    { header: 'Histórico', key: 'historico', width: 35 },
+                    { header: 'Fornecedor', key: 'fornecedor', width: 20 },
                     { header: 'Débito', key: 'debito', width: 15 },
                     { header: 'Crédito', key: 'credito', width: 15 },
                 ],
-                data: data.records.map((r: any) => ({
-                    data: formatDate(r.date),
-                    conta: r.accountName,
-                    historico: r.history,
-                    debito: r.type === 'debit' ? r.value : 0,
-                    credito: r.type === 'credit' ? r.value : 0,
-                }))
+                data: ledgerRows
             })
             break
+        }
 
-        case 'trial_balance':
+        case 'trial_balance': {
+            // Filtrar contas sem movimentação
+            const balanceRows = (data.balances || []).filter((b: any) =>
+                b.previousBalance !== 0 || b.debits !== 0 || b.credits !== 0 || b.finalBalance !== 0
+            )
+            const totalDebits = balanceRows.reduce((s: number, b: any) => s + (b.debits || 0), 0)
+            const totalCredits = balanceRows.reduce((s: number, b: any) => s + (b.credits || 0), 0)
             blob = await generateGenericExcel({
                 title: 'Balancete de Verificação',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
-                summary: [],
-                columns: [
-                    { header: 'Conta', key: 'conta', width: 30 },
-                    { header: 'Saldo Anterior', key: 'anterior', width: 20 },
-                    { header: 'Débitos', key: 'debitos', width: 20 },
-                    { header: 'Créditos', key: 'creditos', width: 20 },
-                    { header: 'Saldo Atual', key: 'atual', width: 20 },
+                summary: [
+                    { label: 'Contas com Movimento', value: balanceRows.length },
+                    { label: 'Total Débitos', value: formatCurrency(totalDebits) },
+                    { label: 'Total Créditos', value: formatCurrency(totalCredits) },
                 ],
-                data: data.accounts.map((a: any) => ({
-                    conta: a.name,
-                    anterior: a.previousBalance,
-                    debitos: a.debits,
-                    creditos: a.credits,
-                    atual: a.currentBalance,
+                columns: [
+                    { header: 'Código', key: 'codigo', width: 12 },
+                    { header: 'Conta', key: 'conta', width: 30 },
+                    { header: 'Saldo Anterior', key: 'anterior', width: 18 },
+                    { header: 'Débitos', key: 'debitos', width: 18 },
+                    { header: 'Créditos', key: 'creditos', width: 18 },
+                    { header: 'Saldo Final', key: 'saldo_final', width: 18 },
+                ],
+                data: balanceRows.map((b: any) => ({
+                    codigo: b.account?.codigo || '-',
+                    conta: b.account?.descricao || 'Indefinido',
+                    anterior: b.previousBalance || 0,
+                    debitos: b.debits || 0,
+                    creditos: b.credits || 0,
+                    saldo_final: b.finalBalance || 0,
                 }))
             })
             break
+        }
 
         case 'interest_discount':
             blob = await generateGenericExcel({
-                title: 'Relatório de Juros e Descontos',
+                title: 'Análise de Juros e Descontos',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Total Juros', value: formatCurrency(data.totals.interest) },
-                    { label: 'Total Descontos', value: formatCurrency(data.totals.discounts) },
+                    { label: 'Total de Juros', value: formatCurrency(data.totals?.interest || 0) },
+                    { label: 'Total de Descontos', value: formatCurrency(data.totals?.discount || 0) },
+                    { label: 'Impacto Líquido', value: formatCurrency((data.totals?.discount || 0) - (data.totals?.interest || 0)) },
                 ],
                 columns: [
-                    { header: 'Conta', key: 'conta', width: 30 },
+                    { header: 'Descrição', key: 'descricao', width: 30 },
                     { header: 'Fornecedor', key: 'fornecedor', width: 25 },
-                    { header: 'Vencimento', key: 'vencimento', width: 15 },
-                    { header: 'Pagamento', key: 'pagamento', width: 15 },
-                    { header: 'Juros', key: 'juros', width: 15 },
-                    { header: 'Multa', key: 'multa', width: 15 },
-                    { header: 'Desconto', key: 'desconto', width: 15 },
-                    { header: 'Total Pago', key: 'total', width: 15 },
+                    { header: 'Categoria', key: 'categoria', width: 18 },
+                    { header: 'Vencimento', key: 'vencimento', width: 14 },
+                    { header: 'Pagamento', key: 'pagamento', width: 14 },
+                    { header: 'Valor Original', key: 'original', width: 16 },
+                    { header: 'Juros', key: 'juros', width: 14 },
+                    { header: 'Desconto', key: 'desconto', width: 14 },
+                    { header: 'Valor Final', key: 'final', width: 16 },
                 ],
-                data: data.accounts.map((a: any) => ({
-                    conta: a.descricao,
-                    fornecedor: a.fornecedor,
-                    vencimento: formatDate(a.vencimento),
-                    pagamento: formatDate(a.pagamento),
-                    juros: a.juros,
-                    multa: a.multa,
-                    desconto: a.desconto,
-                    total: a.valor_pago,
+                data: (data.items || []).map((p: any) => ({
+                    descricao: p.contas?.descricao || '-',
+                    fornecedor: p.contas?.fornecedores?.nome || '-',
+                    categoria: p.contas?.tipos_despesa?.nome || '-',
+                    vencimento: formatDate(p.data_vencimento),
+                    pagamento: formatDate(p.data_pagamento),
+                    original: p.valor_original || 0,
+                    juros: p.valor_juros || 0,
+                    desconto: p.valor_desconto || 0,
+                    final: p.valor_final || 0,
                 }))
             })
             break
 
-        case 'consolidated_multi_company':
+        case 'consolidated_multi_company': {
+            const totalConsolidado = (data.companies || []).reduce(
+                (s: number, c: any) => s + (c.totalValue || 0), 0
+            )
+            const totalPagoConsolidado = (data.companies || []).reduce(
+                (s: number, c: any) => s + (c.totalPaid || 0), 0
+            )
+            const totalPendenteConsolidado = (data.companies || []).reduce(
+                (s: number, c: any) => s + (c.totalPending || 0), 0
+            )
             blob = await generateGenericExcel({
                 title: 'Consolidado Multi-Empresa',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Total Geral', value: formatCurrency(data.totals.grandTotal) },
+                    { label: 'Total de Empresas', value: (data.companies || []).length },
+                    { label: 'Valor Total', value: formatCurrency(totalConsolidado) },
+                    { label: 'Valor Pago', value: formatCurrency(totalPagoConsolidado) },
+                    { label: 'Valor Pendente', value: formatCurrency(totalPendenteConsolidado) },
                 ],
                 columns: [
                     { header: 'Empresa', key: 'empresa', width: 30 },
@@ -602,16 +677,19 @@ async function exportExcel(data: any, config: ExportConfig) {
                     { header: 'Valor Total', key: 'total', width: 20 },
                     { header: 'Pago', key: 'pago', width: 20 },
                     { header: 'Pendente', key: 'pendente', width: 20 },
+                    { header: '% do Total', key: 'pct', width: 14 },
                 ],
-                data: data.companies.map((c: any) => ({
-                    empresa: c.name,
-                    qtd: c.count,
-                    total: c.totalValue,
-                    pago: c.totalPaid,
-                    pendente: c.totalPending,
+                data: (data.companies || []).map((c: any) => ({
+                    empresa: c.empresa?.nome_fantasia || c.empresa?.razao_social || 'Sem Empresa',
+                    qtd: Array.isArray(c.accounts) ? c.accounts.length : 0,
+                    total: c.totalValue || 0,
+                    pago: c.totalPaid || 0,
+                    pendente: c.totalPending || 0,
+                    pct: totalConsolidado > 0 ? `${((c.totalValue || 0) / totalConsolidado * 100).toFixed(1)}%` : '0%',
                 }))
             })
             break
+        }
 
         case 'tax_obligations':
             blob = await generateGenericExcel({
@@ -642,23 +720,26 @@ async function exportExcel(data: any, config: ExportConfig) {
                 title: 'Auditoria de Pagamentos',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Total Auditado', value: formatCurrency(data.summary.totalAmount) },
+                    { label: 'Total de Pagamentos', value: data.totals?.count || 0 },
+                    { label: 'Valor Total Pago', value: formatCurrency(data.totals?.value || 0) },
                 ],
                 columns: [
-                    { header: 'ID', key: 'id', width: 10 },
-                    { header: 'Conta', key: 'conta', width: 30 },
-                    { header: 'Data Pagamento', key: 'data', width: 18 },
-                    { header: 'Usuário', key: 'usuario', width: 20 },
-                    { header: 'Valor', key: 'valor', width: 20 },
-                    { header: 'Ação', key: 'acao', width: 15 },
+                    { header: 'Data Pagamento', key: 'data', width: 14 },
+                    { header: 'Descrição', key: 'descricao', width: 28 },
+                    { header: 'Favorecido', key: 'favorecido', width: 22 },
+                    { header: 'CPF/CNPJ', key: 'documento', width: 18 },
+                    { header: 'Empresa', key: 'empresa', width: 20 },
+                    { header: 'Banco', key: 'banco', width: 16 },
+                    { header: 'Valor Pago', key: 'valor', width: 16 },
                 ],
-                data: data.payments.map((p: any) => ({
-                    id: p.id,
-                    conta: p.descricao,
-                    data: formatDate(p.paymentDate), // Assuming data structure has paymentDate
-                    usuario: p.user,
-                    valor: p.amount,
-                    acao: p.action || 'Pagamento',
+                data: (data.auditLogs || []).map((p: any) => ({
+                    data: formatDate(p.data_pagamento),
+                    descricao: p.contas?.descricao || '-',
+                    favorecido: p.contas?.fornecedores?.nome || '-',
+                    documento: p.contas?.fornecedores?.cnpj_cpf || '-',
+                    empresa: p.contas?.empresas?.nome_fantasia || '-',
+                    banco: p.contas?.bancos?.nome || '-',
+                    valor: p.valor_final || 0,
                 }))
             })
             break
@@ -803,67 +884,101 @@ async function exportCSV(data: any, config: ExportConfig) {
             }))
             break
 
-        case 'accounting_statement': // DRE
-            headers = ['Tipo', 'Descrição', 'Valor']
-            csvData = [
-                ...(data.revenues || []).map((r: any) => ({ tipo: 'Receita', descricao: r.descricao, valor: r.valor })),
-                ...(data.expenses || []).map((e: any) => ({ tipo: 'Despesa', descricao: e.categoria, valor: e.valor * -1 }))
-            ]
+        case 'accounting_statement': { // DRE
+            headers = ['Código', 'Nível', 'Tipo', 'Descrição', 'Valor']
+            const csvDreRows: any[] = []
+            const flattenForCsv = (nodes: any[]) => {
+                const sorted = [...nodes].sort((a: any, b: any) =>
+                    (a.codigo || '').localeCompare(b.codigo || '')
+                )
+                sorted.forEach((node: any) => {
+                    const hasChildren = node.children && node.children.length > 0
+                    if (node.total > 0 || hasChildren) {
+                        csvDreRows.push({
+                            codigo: node.codigo || '000',
+                            nivel: node.nivel || 1,
+                            tipo: hasChildren ? 'Sintética' : 'Analítica',
+                            descricao: node.descricao || 'Sem Descrição',
+                            valor: hasChildren ? node.total : node.valor,
+                        })
+                    }
+                    if (hasChildren) flattenForCsv(node.children)
+                })
+            }
+            if (data.statement) flattenForCsv(data.statement)
+            csvData = csvDreRows
             break
+        }
 
         case 'financial_performance':
-            headers = ['Mês', 'Total Pago', 'Total Pendente']
-            csvData = data.timeline.map((t: any) => ({
-                mes: t.month,
-                total_pago: t.paid,
-                total_pendente: t.pending,
+            headers = ['Data', 'Valor']
+            csvData = (data.trend || []).map((t: any) => ({
+                data: formatDate(t.date),
+                valor: t.value || 0,
             }))
             break
 
-        case 'analytical_ledger':
-            headers = ['Data', 'Conta', 'Histórico', 'Débito', 'Crédito']
-            csvData = data.records.map((r: any) => ({
-                data: formatDate(r.date),
-                conta: r.accountName,
-                historico: r.history,
-                debito: r.type === 'debit' ? r.value : 0,
-                credito: r.type === 'credit' ? r.value : 0,
-            }))
+        case 'analytical_ledger': {
+            headers = ['Data', 'Código', 'Conta Contábil', 'Histórico', 'Fornecedor', 'Débito', 'Crédito']
+            const csvLedgerRows: any[] = []
+                ; (data.ledger || []).forEach((group: any) => {
+                    const codigo = group.plano_conta?.codigo || '000'
+                    const contaName = group.plano_conta?.descricao || 'Sem Classificação'
+                        ; (group.items || []).forEach((item: any) => {
+                            csvLedgerRows.push({
+                                data: formatDate(item.data_emissao),
+                                codigo,
+                                conta: contaName,
+                                historico: item.descricao || 'Sem descrição',
+                                fornecedor: item.fornecedores?.nome || '-',
+                                debito: item.valor_final || 0,
+                                credito: 0,
+                            })
+                        })
+                })
+            csvData = csvLedgerRows
             break
+        }
 
-        case 'trial_balance':
-            headers = ['Conta', 'Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Atual']
-            csvData = data.accounts.map((a: any) => ({
-                conta: a.name,
-                saldo_anterior: a.previousBalance,
-                debitos: a.debits,
-                creditos: a.credits,
-                saldo_atual: a.currentBalance,
+        case 'trial_balance': {
+            headers = ['Código', 'Conta', 'Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Final']
+            const csvBalanceRows = (data.balances || []).filter((b: any) =>
+                b.previousBalance !== 0 || b.debits !== 0 || b.credits !== 0 || b.finalBalance !== 0
+            )
+            csvData = csvBalanceRows.map((b: any) => ({
+                codigo: b.account?.codigo || '-',
+                conta: b.account?.descricao || 'Indefinido',
+                saldo_anterior: b.previousBalance || 0,
+                debitos: b.debits || 0,
+                creditos: b.credits || 0,
+                saldo_final: b.finalBalance || 0,
             }))
             break
+        }
 
         case 'interest_discount':
-            headers = ['Conta', 'Fornecedor', 'Vencimento', 'Pagamento', 'Juros', 'Multa', 'Desconto', 'Valor Pago']
-            csvData = data.accounts.map((a: any) => ({
-                conta: a.descricao,
-                fornecedor: a.fornecedor,
-                vencimento: formatDate(a.vencimento),
-                pagamento: formatDate(a.pagamento),
-                juros: a.juros,
-                multa: a.multa,
-                desconto: a.desconto,
-                valor_pago: a.valor_pago,
+            headers = ['Descrição', 'Fornecedor', 'Categoria', 'Vencimento', 'Pagamento', 'Valor Original', 'Juros', 'Desconto', 'Valor Final']
+            csvData = (data.items || []).map((p: any) => ({
+                descricao: p.contas?.descricao || '-',
+                fornecedor: p.contas?.fornecedores?.nome || '-',
+                categoria: p.contas?.tipos_despesa?.nome || '-',
+                vencimento: formatDate(p.data_vencimento),
+                pagamento: formatDate(p.data_pagamento),
+                valor_original: p.valor_original || 0,
+                juros: p.valor_juros || 0,
+                desconto: p.valor_desconto || 0,
+                valor_final: p.valor_final || 0,
             }))
             break
 
         case 'consolidated_multi_company':
             headers = ['Empresa', 'Total Contas', 'Valor Total', 'Valor Pago', 'Valor Pendente']
-            csvData = data.companies.map((c: any) => ({
-                empresa: c.name,
-                total_contas: c.count,
-                valor_total: c.totalValue,
-                valor_pago: c.totalPaid,
-                valor_pendente: c.totalPending,
+            csvData = (data.companies || []).map((c: any) => ({
+                empresa: c.empresa?.nome_fantasia || c.empresa?.razao_social || 'Sem Empresa',
+                total_contas: Array.isArray(c.accounts) ? c.accounts.length : 0,
+                valor_total: c.totalValue || 0,
+                valor_pago: c.totalPaid || 0,
+                valor_pendente: c.totalPending || 0,
             }))
             break
 
@@ -879,14 +994,15 @@ async function exportCSV(data: any, config: ExportConfig) {
             break
 
         case 'payment_audit':
-            headers = ['ID', 'Conta', 'Data Pagamento', 'Usuário', 'Valor', 'Ação']
-            csvData = data.payments.map((p: any) => ({
-                id: p.id,
-                conta: p.descricao,
-                data_pagamento: formatDate(p.paymentDate),
-                usuario: p.user,
-                valor: p.amount,
-                acao: p.action || 'Pagamento',
+            headers = ['Data Pagamento', 'Descrição', 'Favorecido', 'CPF/CNPJ', 'Empresa', 'Banco', 'Valor Pago']
+            csvData = (data.auditLogs || []).map((p: any) => ({
+                data_pagamento: formatDate(p.data_pagamento),
+                descricao: p.contas?.descricao || '-',
+                favorecido: p.contas?.fornecedores?.nome || '-',
+                cpf_cnpj: p.contas?.fornecedores?.cnpj_cpf || '-',
+                empresa: p.contas?.empresas?.nome_fantasia || '-',
+                banco: p.contas?.bancos?.nome || '-',
+                valor_pago: p.valor_final || 0,
             }))
             break
 

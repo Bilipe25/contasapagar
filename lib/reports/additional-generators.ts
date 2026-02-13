@@ -167,11 +167,18 @@ export function generateCategoryAnalysisPDF(
     } as TDocumentDefinitions
 }
 
+interface DREEntry {
+    codigo: string
+    descricao: string
+    valor: number
+    total: number
+    nivel: number
+    isSynthetic: boolean // Has children (conta sintética)
+}
+
 interface DREData {
-    revenues: Array<{ descricao: string; valor: number }>
-    expenses: Array<{ categoria: string; valor: number }>
+    entries: DREEntry[]
     summary: {
-        totalRevenues: number
         totalExpenses: number
         netResult: number
     }
@@ -182,7 +189,7 @@ interface DREData {
 }
 
 /**
- * Generates PDF for DRE (Demonstrativo de Resultados)
+ * Generates PDF for DRE (Demonstrativo de Resultados) with hierarchical tree
  */
 export function generateDREPDF(
     data: DREData,
@@ -191,8 +198,8 @@ export function generateDREPDF(
     const docDef = getDefaultDocumentDefinition()
 
     const headerOptions: ReportHeaderOptions = {
-        title: 'DRE - Demonstrativo de Resultados do Exercício',
-        subtitle: 'Relatório Contábil',
+        title: 'DRE — Demonstrativo de Despesas do Exercício',
+        subtitle: 'Relatório Contábil — Contas a Pagar',
         period: {
             start: data.period.startDate,
             end: data.period.endDate,
@@ -200,84 +207,92 @@ export function generateDREPDF(
         generatedAt: new Date(),
     }
 
-    const content = []
+    const content: any[] = []
     content.push(generateReportHeader(headerOptions))
 
-    // Revenues
+    // Hierarchical Expenses Table
     content.push({
-        text: 'Receitas',
+        text: 'Classificação de Despesas',
         style: 'sectionTitle',
         margin: [0, 15, 0, 10] as [number, number, number, number],
     })
 
-    if (data.revenues && data.revenues.length > 0) {
-        const revenueTable = data.revenues.map((r) => ({
-            descricao: r.descricao,
-            valor: formatCurrency(r.valor),
-        }))
-
-        const columns: TableColumn[] = [
-            { header: 'Descrição', dataKey: 'descricao', width: '*', alignment: 'left' },
-            { header: 'Valor', dataKey: 'valor', width: 120, alignment: 'right' },
+    if (data.entries && data.entries.length > 0) {
+        // Build pdfmake table manually with indentation and formatting
+        const tableBody: any[][] = [
+            // Header row
+            [
+                { text: 'Código', bold: true, fontSize: 8, color: '#374151', fillColor: '#f3f4f6' },
+                { text: 'Descrição', bold: true, fontSize: 8, color: '#374151', fillColor: '#f3f4f6' },
+                { text: 'Valor', bold: true, fontSize: 8, color: '#374151', alignment: 'right', fillColor: '#f3f4f6' },
+            ]
         ]
 
-        content.push(generateTable(revenueTable, columns))
-    }
+        data.entries.forEach(entry => {
+            const indent = '  '.repeat(Math.max(0, entry.nivel - 1))
+            const isBold = entry.isSynthetic
+            const fontSize = entry.isSynthetic ? 9 : 8
+            const fillColor = entry.nivel === 1 && entry.isSynthetic ? '#f9fafb' : undefined
+            const displayValue = entry.isSynthetic ? entry.total : entry.valor
 
-    // Total Revenues
-    content.push({
-        columns: [
-            { text: 'Total de Receitas', bold: true, fontSize: 11, width: '*' },
-            {
-                text: formatCurrency(data.summary.totalRevenues),
-                bold: true,
-                fontSize: 11,
-                alignment: 'right' as const,
-                width: 120
+            tableBody.push([
+                { text: entry.codigo, fontSize: 8, color: '#6b7280', fillColor },
+                { text: `${indent}${entry.descricao}`, bold: isBold, fontSize, fillColor },
+                {
+                    text: displayValue > 0 ? formatCurrency(displayValue) : '-',
+                    alignment: 'right' as const,
+                    bold: isBold,
+                    fontSize,
+                    fillColor,
+                    color: displayValue > 0 ? '#1f2937' : '#9ca3af'
+                },
+            ])
+        })
+
+        content.push({
+            table: {
+                headerRows: 1,
+                widths: [60, '*', 100],
+                body: tableBody,
             },
-        ],
-        margin: [0, 10, 0, 20] as [number, number, number, number],
-    })
-
-    // Expenses
-    content.push({
-        text: 'Despesas',
-        style: 'sectionTitle',
-        margin: [0, 10, 0, 10] as [number, number, number, number],
-    })
-
-    if (data.expenses && data.expenses.length > 0) {
-        const expenseTable = data.expenses.map((e) => ({
-            categoria: e.categoria,
-            valor: formatCurrency(e.valor),
-        }))
-
-        const columns: TableColumn[] = [
-            { header: 'Categoria', dataKey: 'categoria', width: '*', alignment: 'left' },
-            { header: 'Valor', dataKey: 'valor', width: 120, alignment: 'right' },
-        ]
-
-        content.push(generateTable(expenseTable, columns))
+            layout: {
+                hLineWidth: (i: number, node: any) => (i === 0 || i === 1 || i === node.table.body.length) ? 1 : 0.5,
+                vLineWidth: () => 0,
+                hLineColor: (i: number) => i <= 1 ? '#d1d5db' : '#e5e7eb',
+                paddingLeft: () => 6,
+                paddingRight: () => 6,
+                paddingTop: () => 4,
+                paddingBottom: () => 4,
+            },
+        })
     }
 
-    // Total Expenses
+    // Total line
     content.push({
         columns: [
-            { text: 'Total de Despesas', bold: true, fontSize: 11, width: '*' },
+            { text: 'TOTAL DE DESPESAS', bold: true, fontSize: 11, width: '*' },
             {
                 text: formatCurrency(data.summary.totalExpenses),
                 bold: true,
                 fontSize: 11,
                 alignment: 'right' as const,
                 width: 120,
-                color: data.summary.totalExpenses > 0 ? '#dc2626' : undefined
+                color: data.summary.totalExpenses > 0 ? '#dc2626' : '#059669'
             },
         ],
-        margin: [0, 10, 0, 30] as [number, number, number, number],
+        margin: [0, 12, 0, 8] as [number, number, number, number],
+    })
+
+    // Double line separator (accounting convention)
+    content.push({
+        canvas: [
+            { type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: '#374151' },
+            { type: 'line', x1: 0, y1: 3, x2: 515, y2: 3, lineWidth: 1, lineColor: '#374151' },
+        ],
+        margin: [0, 0, 0, 10] as [number, number, number, number],
     })
 
     // Net Result
-    const isNegative = data.summary.netResult < 0
     content.push({
         columns: [
             {
@@ -293,12 +308,11 @@ export function generateDREPDF(
                 fontSize: 13,
                 alignment: 'right' as const,
                 width: 120,
-                color: isNegative ? '#dc2626' : '#059669'
+                color: data.summary.netResult < 0 ? '#dc2626' : '#059669'
             },
         ],
         margin: [0, 0, 0, 10] as [number, number, number, number],
         fillColor: '#f3f4f6',
-        padding: [10, 10, 10, 10] as [number, number, number, number],
     })
 
     return {
@@ -314,15 +328,23 @@ export function generateDREPDF(
 
 interface FinancialPerformanceData {
     metrics: {
-        paymentOnTime: number
-        latePayments: number
-        averageDelay: number
-        cashFlowHealth: string
+        total: number
+        count: number
+        average: number
     }
-    timeline: Array<{
-        month: string
-        paid: number
-        pending: number
+    topCategories: Array<{
+        category: string
+        total: number
+        count: number
+    }>
+    topSuppliers: Array<{
+        supplier: string
+        total: number
+        count: number
+    }>
+    trend: Array<{
+        date: string
+        value: number
     }>
     period: {
         startDate: string
@@ -332,6 +354,7 @@ interface FinancialPerformanceData {
 
 /**
  * Generates PDF for Financial Performance Report
+ * Shows real KPIs, top categories, top suppliers, and daily trend
  */
 export function generateFinancialPerformancePDF(
     data: FinancialPerformanceData,
@@ -341,7 +364,7 @@ export function generateFinancialPerformancePDF(
 
     const headerOptions: ReportHeaderOptions = {
         title: 'Performance Financeira',
-        subtitle: 'Indicadores e Métricas',
+        subtitle: 'Indicadores, Rankings e Tendência',
         period: {
             start: data.period.startDate,
             end: data.period.endDate,
@@ -349,40 +372,95 @@ export function generateFinancialPerformancePDF(
         generatedAt: new Date(),
     }
 
-    const content = []
+    const content: any[] = []
     content.push(generateReportHeader(headerOptions))
 
-    // KPIs
+    // KPIs reais
     const kpiItems = [
-        { label: 'Pagamentos em Dia', value: `${data.metrics.paymentOnTime}%`, highlight: true },
-        { label: 'Pagamentos Atrasados', value: `${data.metrics.latePayments}%` },
-        { label: 'Atraso Médio (dias)', value: data.metrics.averageDelay.toFixed(1) },
-        { label: 'Saúde do Fluxo de Caixa', value: data.metrics.cashFlowHealth },
+        { label: 'Total de Despesas', value: formatCurrency(data.metrics.total), highlight: true },
+        { label: 'Qtde. de Contas', value: data.metrics.count.toString() },
+        { label: 'Ticket Médio', value: formatCurrency(data.metrics.average) },
     ]
     const summary = generateSummarySection('Indicadores Principais', kpiItems)
     content.push(...(Array.isArray(summary) ? summary : [summary]))
 
-    // Timeline
-    if (data.timeline && data.timeline.length > 0) {
+    // Top Categorias
+    if (data.topCategories && data.topCategories.length > 0) {
         content.push({
-            text: 'Evolução Temporal',
+            text: 'Ranking — Top Categorias',
             style: 'sectionTitle',
             margin: [0, 20, 0, 10] as [number, number, number, number],
         })
 
-        const timelineTable = data.timeline.map((t) => ({
-            mês: t.month,
-            pago: formatCurrency(t.paid),
-            pendente: formatCurrency(t.pending),
+        const catTable = data.topCategories.map((c, i) => ({
+            pos: `${i + 1}°`,
+            categoria: c.category,
+            valor: formatCurrency(c.total),
+            qtd: c.count.toString(),
+            pct: data.metrics.total > 0
+                ? formatPercent((c.total / data.metrics.total) * 100)
+                : '0%',
         }))
 
-        const columns: TableColumn[] = [
-            { header: 'Mês', dataKey: 'mês', width: '*', alignment: 'left' },
-            { header: 'Pago', dataKey: 'pago', width: 100, alignment: 'right' },
-            { header: 'Pendente', dataKey: 'pendente', width: 100, alignment: 'right' },
+        const catColumns: TableColumn[] = [
+            { header: '#', dataKey: 'pos', width: 30, alignment: 'center' },
+            { header: 'Categoria', dataKey: 'categoria', width: '*', alignment: 'left' },
+            { header: 'Valor Total', dataKey: 'valor', width: 100, alignment: 'right' },
+            { header: 'Contas', dataKey: 'qtd', width: 50, alignment: 'center' },
+            { header: '% do Total', dataKey: 'pct', width: 70, alignment: 'right' },
         ]
 
-        content.push(generateTable(timelineTable, columns))
+        content.push(generateTable(catTable, catColumns))
+    }
+
+    // Top Fornecedores
+    if (data.topSuppliers && data.topSuppliers.length > 0) {
+        content.push({
+            text: 'Ranking — Top Fornecedores',
+            style: 'sectionTitle',
+            margin: [0, 20, 0, 10] as [number, number, number, number],
+        })
+
+        const supTable = data.topSuppliers.map((s, i) => ({
+            pos: `${i + 1}°`,
+            fornecedor: s.supplier,
+            valor: formatCurrency(s.total),
+            qtd: s.count.toString(),
+            pct: data.metrics.total > 0
+                ? formatPercent((s.total / data.metrics.total) * 100)
+                : '0%',
+        }))
+
+        const supColumns: TableColumn[] = [
+            { header: '#', dataKey: 'pos', width: 30, alignment: 'center' },
+            { header: 'Fornecedor', dataKey: 'fornecedor', width: '*', alignment: 'left' },
+            { header: 'Valor Total', dataKey: 'valor', width: 100, alignment: 'right' },
+            { header: 'Contas', dataKey: 'qtd', width: 50, alignment: 'center' },
+            { header: '% do Total', dataKey: 'pct', width: 70, alignment: 'right' },
+        ]
+
+        content.push(generateTable(supTable, supColumns))
+    }
+
+    // Evolução Diária (Tendência)
+    if (data.trend && data.trend.length > 0) {
+        content.push({
+            text: 'Evolução Diária de Despesas',
+            style: 'sectionTitle',
+            margin: [0, 20, 0, 10] as [number, number, number, number],
+        })
+
+        const trendTable = data.trend.map((t) => ({
+            data: formatDate(t.date),
+            valor: formatCurrency(t.value),
+        }))
+
+        const trendColumns: TableColumn[] = [
+            { header: 'Data', dataKey: 'data', width: 100, alignment: 'center' },
+            { header: 'Valor', dataKey: 'valor', width: '*', alignment: 'right' },
+        ]
+
+        content.push(generateTable(trendTable, trendColumns))
     }
 
     return {
