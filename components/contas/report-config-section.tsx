@@ -511,29 +511,62 @@ export function ReportConfigSection({
 
                         <div>
                             <Label className="text-sm font-medium">Colunas do Relatório</Label>
-                            <div className="mt-3 grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md">
-                                {(config.columns?.availableColumns || DEFAULT_ACCOUNT_COLUMNS).map((col) => {
-                                    const isSelected = config.columns?.selectedColumns?.includes(col.id)
+                            <div className="mt-3 max-h-60 overflow-y-auto p-2 border rounded-md space-y-4">
+                                {['basic', 'financial', 'dates', 'additional'].map((groupKey) => {
+                                    const groupLabel = {
+                                        basic: 'Dados Básicos',
+                                        financial: 'Dados Financeiros',
+                                        dates: 'Datas',
+                                        additional: 'Informações Adicionais'
+                                    }[groupKey] as string
+
+                                    const availableCols = config.columns?.availableColumns?.length
+                                        ? config.columns.availableColumns
+                                        : DEFAULT_ACCOUNT_COLUMNS
+
+                                    const groupColumns = availableCols.filter(c => c.group === groupKey)
+
+                                    if (groupColumns.length === 0) return null
+
                                     return (
-                                        <div key={col.id} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={`col-${col.id}`}
-                                                checked={isSelected}
-                                                onCheckedChange={(checked) => {
-                                                    const currentSelected = config.columns?.selectedColumns || []
-                                                    let newSelected
-                                                    if (checked) {
-                                                        newSelected = [...currentSelected, col.id]
-                                                    } else {
-                                                        newSelected = currentSelected.filter(id => id !== col.id)
-                                                    }
-                                                    updateColumns({ selectedColumns: newSelected })
-                                                }}
-                                                disabled={col.mandatory}
-                                            />
-                                            <Label htmlFor={`col-${col.id}`} className="cursor-pointer font-normal text-sm truncate" title={col.label}>
-                                                {col.label} {col.mandatory && <span className="text-xs text-muted-foreground">(Obrigatório)</span>}
-                                            </Label>
+                                        <div key={groupKey}>
+                                            <h5 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider sticky top-0 bg-background py-1 z-10 border-b">
+                                                {groupLabel}
+                                            </h5>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {groupColumns.map((col) => {
+                                                    const isSelected = config.columns?.selectedColumns?.includes(col.id)
+                                                    return (
+                                                        <div key={col.id} className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                                id={`col-${col.id}`}
+                                                                checked={isSelected}
+                                                                onCheckedChange={(checked) => {
+                                                                    const currentSelected = config.columns?.selectedColumns || []
+                                                                    let newSelected
+                                                                    if (checked) {
+                                                                        newSelected = [...currentSelected, col.id]
+                                                                    } else {
+                                                                        newSelected = currentSelected.filter(id => id !== col.id)
+                                                                    }
+                                                                    updateColumns({ selectedColumns: newSelected })
+                                                                }}
+                                                                disabled={col.mandatory}
+                                                            />
+                                                            <Label
+                                                                htmlFor={`col-${col.id}`}
+                                                                className={cn(
+                                                                    "cursor-pointer font-normal text-sm truncate",
+                                                                    col.mandatory && "font-medium"
+                                                                )}
+                                                                title={col.label}
+                                                            >
+                                                                {col.label} {col.mandatory && <span className="text-[10px] text-muted-foreground ml-1">(Obrigatório)</span>}
+                                                            </Label>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
                                         </div>
                                     )
                                 })}

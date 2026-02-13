@@ -455,8 +455,8 @@ export const DEFAULT_EXPORT_CONFIG: Partial<ExportConfig> = {
         },
     },
     columns: {
-        availableColumns: [],
-        selectedColumns: [],
+        availableColumns: DEFAULT_ACCOUNT_COLUMNS,
+        selectedColumns: DEFAULT_ACCOUNT_COLUMNS.filter(c => c.mandatory).map(c => c.id),
     },
     detailLevel: DetailLevel.NORMAL,
     viewMode: ViewMode.BY_ACCOUNT,
