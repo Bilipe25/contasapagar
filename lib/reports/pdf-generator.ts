@@ -93,7 +93,7 @@ export async function generatePDF({ contas, stats, periodo, config, availableCol
         text: col.label,
         bold: true,
         fontSize: 9, // Slightly smaller font for more columns
-        alignment: ['valor_original', 'valor_final', 'valor_pago', 'juros', 'descontos'].includes(col.id) ? 'right' : 'left'
+        alignment: ['valor_original', 'valor_final', 'valor_pago', 'valor_pendente', 'juros', 'descontos'].includes(col.id) ? 'right' : 'left'
     }))
 
     // Helper to get value for column
@@ -113,6 +113,7 @@ export async function generatePDF({ contas, stats, periodo, config, availableCol
             case 'valor_original': return formatCurrency(conta.valor || 0)
             case 'valor_final': return formatCurrency(conta.valor_final ?? conta.valor_total ?? conta.valor ?? 0)
             case 'valor_pago': return formatCurrency(conta.valor_pago || 0)
+            case 'valor_pendente': return formatCurrency(conta.valor_pendente ?? ((conta.valor_final ?? conta.valor_total ?? 0) - (conta.valor_pago || 0)))
             case 'juros': return formatCurrency(conta.juros || conta.total_juros || 0)
             case 'descontos': return formatCurrency(conta.descontos || conta.total_descontos || 0)
             case 'status': return (conta.status || '-').toUpperCase()
@@ -132,7 +133,7 @@ export async function generatePDF({ contas, stats, periodo, config, availableCol
         return displayColumns.map((col: any) => ({
             text: getValueForColumn(conta, col.id),
             fontSize: 8,
-            alignment: ['valor_original', 'valor_final', 'valor_pago', 'juros', 'descontos'].includes(col.id) ? 'right' : 'left'
+            alignment: ['valor_original', 'valor_final', 'valor_pago', 'valor_pendente', 'juros', 'descontos'].includes(col.id) ? 'right' : 'left'
         }))
     })
 

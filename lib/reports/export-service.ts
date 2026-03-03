@@ -344,7 +344,9 @@ async function exportExcel(data: any, config: ExportConfig) {
                         conta_descricao: conta.descricao,
                         fornecedor_nome: conta.fornecedores?.nome,
                         categoria_nome: conta.tipos_despesa?.nome,
-                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
+                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`,
+                        valor_pago_col: p.valor_pago || 0,
+                        valor_pendente_col: Math.max(0, (p.valor_final || 0) - (p.valor_pago || 0)),
                     }))
                 })
                 excelItems.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
@@ -356,6 +358,8 @@ async function exportExcel(data: any, config: ExportConfig) {
                     categoria_nome: conta.tipos_despesa?.nome,
                     parcela_info: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
                     valor_final: conta.valor_total,
+                    valor_pago_col: conta.valor_pago || 0,
+                    valor_pendente_col: conta.valor_pendente ?? Math.max(0, (conta.valor_total || 0) - (conta.valor_pago || 0)),
                     data_vencimento: conta.proxima_parcela?.data_vencimento
                 }))
             }
@@ -365,7 +369,9 @@ async function exportExcel(data: any, config: ExportConfig) {
                 'descricao': { header: 'Descrição', key: 'conta_descricao', width: 30 },
                 'fornecedor': { header: 'Fornecedor', key: 'fornecedor_nome', width: 25 },
                 'categoria': { header: 'Categoria', key: 'categoria_nome', width: 20 },
-                'valor_final': { header: 'Valor', key: 'valor_final', width: 15 },
+                'valor_final': { header: 'Valor Final', key: 'valor_final', width: 15 },
+                'valor_pago': { header: 'Valor Pago', key: 'valor_pago_col', width: 15 },
+                'valor_pendente': { header: 'Valor Pendente', key: 'valor_pendente_col', width: 15 },
                 'numero_parcela': { header: 'Parcela', key: 'parcela_info', width: 10 },
                 'status': { header: 'Status', key: 'status', width: 15 },
                 'data_vencimento': { header: 'Vencimento', key: 'data_vencimento', width: 15 },
@@ -407,7 +413,7 @@ async function exportExcel(data: any, config: ExportConfig) {
                     const mapped: any = {}
                     excelColumns.forEach(col => {
                         let val = item[col.key]
-                        if (col.key === 'valor_final') val = typeof val === 'number' ? val : 0
+                        if (col.key === 'valor_final' || col.key === 'valor_pago_col' || col.key === 'valor_pendente_col') val = typeof val === 'number' ? val : 0
                         if (col.key === 'data_vencimento' || col.key === 'data_pagamento') val = val ? formatDate(val) : '-'
                         mapped[col.key] = val
                     })
@@ -834,7 +840,9 @@ async function exportCSV(data: any, config: ExportConfig) {
                         conta_descricao: conta.descricao,
                         fornecedor_nome: conta.fornecedores?.nome,
                         categoria_nome: conta.tipos_despesa?.nome,
-                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
+                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`,
+                        valor_pago_col: p.valor_pago || 0,
+                        valor_pendente_col: Math.max(0, (p.valor_final || 0) - (p.valor_pago || 0)),
                     }))
                 })
                 csvItems.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
@@ -846,6 +854,8 @@ async function exportCSV(data: any, config: ExportConfig) {
                     categoria_nome: conta.tipos_despesa?.nome,
                     parcela_info: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
                     valor_final: conta.valor_total,
+                    valor_pago_col: conta.valor_pago || 0,
+                    valor_pendente_col: conta.valor_pendente ?? Math.max(0, (conta.valor_total || 0) - (conta.valor_pago || 0)),
                     data_vencimento: conta.proxima_parcela?.data_vencimento
                 }))
             }
@@ -855,7 +865,9 @@ async function exportCSV(data: any, config: ExportConfig) {
                 'descricao': { header: 'Descrição', key: 'conta_descricao' },
                 'fornecedor': { header: 'Fornecedor', key: 'fornecedor_nome' },
                 'categoria': { header: 'Categoria', key: 'categoria_nome' },
-                'valor_final': { header: 'Valor', key: 'valor_final' },
+                'valor_final': { header: 'Valor Final', key: 'valor_final' },
+                'valor_pago': { header: 'Valor Pago', key: 'valor_pago_col' },
+                'valor_pendente': { header: 'Valor Pendente', key: 'valor_pendente_col' },
                 'numero_parcela': { header: 'Parcela', key: 'parcela_info' },
                 'status': { header: 'Status', key: 'status' },
                 'data_vencimento': { header: 'Vencimento', key: 'data_vencimento' },

@@ -420,6 +420,8 @@ export const DEFAULT_ACCOUNT_COLUMNS: AvailableColumn[] = [
     { id: 'valor_juros', label: 'Juros', group: 'financial' },
     { id: 'valor_desconto', label: 'Descontos', group: 'financial' },
     { id: 'valor_final', label: 'Valor Final', mandatory: true, group: 'financial' },
+    { id: 'valor_pago', label: 'Valor Pago', group: 'financial' },
+    { id: 'valor_pendente', label: 'Valor Pendente', group: 'financial' },
     { id: 'data_vencimento', label: 'Data de Vencimento', group: 'dates' },
     { id: 'data_emissao', label: 'Data de Emissão', group: 'dates' },
     { id: 'data_pagamento', label: 'Data de Pagamento', group: 'dates' },

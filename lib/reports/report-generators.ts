@@ -134,7 +134,9 @@ export function generateMonthlyDetailedPDF(
                     descricao: truncate(item.conta_descricao, 35),
                     fornecedor: truncate(item.fornecedor_nome, 20),
                     categoria: truncate(item.categoria_nome, 15),
-                    valor: formatCurrency(item.valor_final), // Valor da parcela
+                    valor: formatCurrency(item.valor_final),
+                    valor_pago: formatCurrency(item.valor_pago || 0),
+                    valor_pendente: formatCurrency(Math.max(0, (item.valor_final || 0) - (item.valor_pago || 0))),
                     parcelas: item.parcela_info,
                     status: badge.text,
                     vencimento: formatDate(item.data_vencimento),
@@ -150,12 +152,14 @@ export function generateMonthlyDetailedPDF(
                     fornecedor: truncate(conta.fornecedores?.nome, 20),
                     categoria: truncate(conta.tipos_despesa?.nome, 15),
                     valor: formatCurrency(conta.valor_total),
+                    valor_pago: formatCurrency(conta.valor_pago || 0),
+                    valor_pendente: formatCurrency(conta.valor_pendente ?? Math.max(0, (conta.valor_total || 0) - (conta.valor_pago || 0))),
                     parcelas: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
                     status: badge.text,
                     vencimento: conta.proxima_parcela?.data_vencimento
                         ? formatDate(conta.proxima_parcela.data_vencimento)
                         : '-',
-                    pagamento: '-', // Conta consolidada não tem data única de pagamento geralmente
+                    pagamento: '-',
                 }
             })
         }
@@ -172,7 +176,9 @@ export function generateMonthlyDetailedPDF(
             'descricao': { header: 'Descrição', dataKey: 'descricao', width: '*', alignment: 'left' },
             'fornecedor': { header: 'Fornecedor', dataKey: 'fornecedor', width: 85, alignment: 'left' },
             'categoria': { header: 'Categoria', dataKey: 'categoria', width: 65, alignment: 'left' },
-            'valor_final': { header: 'Valor', dataKey: 'valor', width: 75, alignment: 'right' },
+            'valor_final': { header: 'Valor Final', dataKey: 'valor', width: 75, alignment: 'right' },
+            'valor_pago': { header: 'Valor Pago', dataKey: 'valor_pago', width: 75, alignment: 'right' },
+            'valor_pendente': { header: 'Valor Pendente', dataKey: 'valor_pendente', width: 80, alignment: 'right' },
             'numero_parcela': { header: 'Parc.', dataKey: 'parcelas', width: 35, alignment: 'center' },
             'status': { header: 'Status', dataKey: 'status', width: 60, alignment: 'center' },
             'data_vencimento': { header: 'Vencto', dataKey: 'vencimento', width: 60, alignment: 'center' },
