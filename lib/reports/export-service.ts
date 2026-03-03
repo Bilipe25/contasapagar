@@ -320,20 +320,48 @@ async function exportExcel(data: any, config: ExportConfig) {
             // Custom logic for Monthly Detailed to support ViewMode and Columns
             const isInstallmentView = config.viewMode === ViewMode.BY_INSTALLMENT
             let excelItems: any[] = []
+            let totalRecords = 0
+            let sumTotalValue = 0
 
             if (isInstallmentView) {
+                const periodStart = data.period?.startDate ? new Date(data.period.startDate) : null
+                const periodEnd = data.period?.endDate ? new Date(data.period.endDate + 'T23:59:59') : null
+                const statusFilter = config.filters?.customFilters?.parcelaStatus
+
                 excelItems = data.contas.flatMap((conta: any) => {
-                    return (conta.parcelas || []).map((p: any) => ({
-                        ...p,
-                        conta_descricao: conta.descricao,
-                        fornecedor_nome: conta.fornecedores?.nome,
-                        categoria_nome: conta.tipos_despesa?.nome,
-                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`,
-                        valor_pago_col: p.valor_pago || 0,
-                        valor_pendente_col: Math.max(0, (p.valor_final || 0) - (p.valor_pago || 0)),
-                    }))
+                    return (conta.parcelas || [])
+                        .filter((p: any) => {
+                            // Filter parcelas by period when in installment view
+                            if (periodStart && periodEnd) {
+                                const dateToCompare = config.period?.dateField === 'payment_date'
+                                    ? (p.data_pagamento ? new Date(p.data_pagamento) : null)
+                                    : new Date(p.data_vencimento)
+
+                                if (!dateToCompare || dateToCompare < periodStart || dateToCompare > periodEnd) return false
+                            }
+                            // Filter by status
+                            if (statusFilter && statusFilter.length > 0) {
+                                if (!statusFilter.includes(p.status)) return false
+                            }
+                            return true
+                        })
+                        .map((p: any) => {
+                            const valorPago = p.status === 'pago' ? (p.valor_final || 0) : (p.valor_pago || 0)
+                            const valorPendente = Math.max(0, (p.valor_final || 0) - valorPago)
+                            return {
+                                ...p,
+                                conta_descricao: conta.descricao,
+                                fornecedor_nome: conta.fornecedores?.nome,
+                                categoria_nome: conta.tipos_despesa?.nome,
+                                parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`,
+                                valor_pago_col: valorPago,
+                                valor_pendente_col: valorPendente,
+                            }
+                        })
                 })
                 excelItems.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
+                totalRecords = excelItems.length
+                sumTotalValue = excelItems.reduce((sum, i) => sum + (i.valor_final || 0), 0)
             } else {
                 excelItems = data.contas.map((conta: any) => ({
                     ...conta,
@@ -346,6 +374,8 @@ async function exportExcel(data: any, config: ExportConfig) {
                     valor_pendente_col: conta.valor_pendente ?? Math.max(0, (conta.valor_total || 0) - (conta.valor_pago || 0)),
                     data_vencimento: conta.proxima_parcela?.data_vencimento
                 }))
+                totalRecords = excelItems.length
+                sumTotalValue = data.totals.totalValue
             }
 
             // Define available columns matching DEFAULT_ACCOUNT_COLUMNS ids
@@ -389,8 +419,8 @@ async function exportExcel(data: any, config: ExportConfig) {
                 title: isInstallmentView ? 'Relatório Detalhado (Por Parcela)' : 'Relatório Detalhado (Por Conta)',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Total de Registros', value: excelItems.length },
-                    { label: 'Valor Total', value: formatCurrency(data.totals.totalValue) },
+                    { label: 'Total de Registros', value: totalRecords },
+                    { label: 'Valor Total', value: formatCurrency(sumTotalValue) },
                 ],
                 columns: excelColumns,
                 data: excelItems.map(item => {

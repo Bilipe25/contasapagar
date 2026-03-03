@@ -59,6 +59,111 @@ export function generateMonthlyDetailedPDF(
     const content: any[] = []
     content.push(generateReportHeader(headerOptions))
 
+    const isInstallmentView = config.viewMode === ViewMode.BY_INSTALLMENT
+    let tableData: any[] = []
+
+    // ---- EXTRACT AND FILTER INSTALLMENTS IF NEEDED ----
+    if (isInstallmentView && data.contas.length > 0) {
+        const periodStart = data.period?.startDate ? new Date(data.period.startDate) : null
+        const periodEnd = data.period?.endDate ? new Date(data.period.endDate + 'T23:59:59') : null
+        const statusFilter = config.filters?.customFilters?.parcelaStatus
+        const dateField = config.period?.dateField || DEFAULT_ACCOUNT_COLUMNS[0] // fallback or use the one from config
+
+        let installments = data.contas.flatMap(conta => {
+            return (conta.parcelas || [])
+                .filter((p: any) => {
+                    // Filter parcelas by period when in installment view
+                    if (periodStart && periodEnd) {
+                        const dateToCompare = config.period?.dateField === 'payment_date'
+                            ? (p.data_pagamento ? new Date(p.data_pagamento) : null)
+                            : new Date(p.data_vencimento)
+
+                        if (!dateToCompare || dateToCompare < periodStart || dateToCompare > periodEnd) return false
+                    }
+                    // Filter by status
+                    if (statusFilter && statusFilter.length > 0) {
+                        if (!statusFilter.includes(p.status)) return false
+                    }
+                    return true
+                })
+                .map((p: any) => {
+                    const badge = getStatusBadge(p.status)
+                    // Infer valor_pago
+                    const valorPago = p.status === 'pago' ? (p.valor_final || 0) : (p.valor_pago || 0)
+                    const valorPendente = Math.max(0, (p.valor_final || 0) - valorPago)
+
+                    return {
+                        ...p,
+                        conta_descricao: conta.descricao,
+                        fornecedor_nome: conta.fornecedores?.nome,
+                        categoria_nome: conta.tipos_despesa?.nome,
+                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`,
+                        inferred_valor_pago: valorPago,
+                        inferred_valor_pendente: valorPendente,
+                        badge_text: badge.text
+                    }
+                })
+        })
+
+        // Sort by due date
+        installments.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
+
+        // OVERRIDE TOTALS AND STATUS DISTRIBUTION BASED ON FILTERED INSTALLMENTS
+        data.totals.totalAccounts = new Set(installments.map(i => i.conta_id)).size
+        data.totals.totalInstallments = installments.length
+        data.totals.totalValue = installments.reduce((sum, i) => sum + (i.valor_final || 0), 0)
+        data.totals.totalPaid = installments.reduce((sum, i) => sum + i.inferred_valor_pago, 0)
+        data.totals.totalPending = installments.reduce((sum, i) => sum + i.inferred_valor_pendente, 0)
+
+        const groupedStatus: Record<string, { count: number, total: number }> = {}
+        installments.forEach(i => {
+            if (!groupedStatus[i.status]) groupedStatus[i.status] = { count: 0, total: 0 }
+            groupedStatus[i.status].count++
+            groupedStatus[i.status].total += i.valor_final || 0
+        })
+
+        data.byStatus = Object.entries(groupedStatus).map(([status, agg]) => ({
+            status,
+            count: agg.count,
+            total: agg.total,
+            items: [] // not needed for headers
+        }))
+
+        // Prepare table data
+        tableData = installments.map((item) => ({
+            descricao: truncate(item.conta_descricao, 35),
+            fornecedor: truncate(item.fornecedor_nome, 20),
+            categoria: truncate(item.categoria_nome, 15),
+            valor: formatCurrency(item.valor_final),
+            valor_pago: formatCurrency(item.inferred_valor_pago),
+            valor_pendente: formatCurrency(item.inferred_valor_pendente),
+            parcelas: item.parcela_info,
+            status: item.badge_text,
+            vencimento: formatDate(item.data_vencimento),
+            pagamento: item.data_pagamento ? formatDate(item.data_pagamento) : '-',
+        }))
+    } else if (data.contas.length > 0) {
+        // By Account (Standard)
+        tableData = data.contas.map((conta) => {
+            const badge = getStatusBadge(conta.status)
+            return {
+                descricao: truncate(conta.descricao, 40),
+                fornecedor: truncate(conta.fornecedores?.nome, 20),
+                categoria: truncate(conta.tipos_despesa?.nome, 15),
+                valor: formatCurrency(conta.valor_total),
+                valor_pago: formatCurrency(conta.valor_pago || 0),
+                valor_pendente: formatCurrency(conta.valor_pendente ?? Math.max(0, (conta.valor_total || 0) - (conta.valor_pago || 0))),
+                parcelas: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
+                status: badge.text,
+                vencimento: conta.proxima_parcela?.data_vencimento
+                    ? formatDate(conta.proxima_parcela.data_vencimento)
+                    : '-',
+                pagamento: '-',
+            }
+        })
+    }
+    // ------------------------------------------------
+
     // KPI Cards compactos
     const paidPercent = data.totals.totalValue > 0
         ? ((data.totals.totalPaid / data.totals.totalValue) * 100).toFixed(1) + '%'
@@ -102,87 +207,12 @@ export function generateMonthlyDetailedPDF(
 
     // Detalhamento das Contas
     if (config.detailLevel !== 'resumido' && data.contas.length > 0) {
-        const isInstallmentView = config.viewMode === ViewMode.BY_INSTALLMENT
-
         content.push({
             text: isInstallmentView ? 'Detalhamento das Parcelas' : 'Detalhamento das Contas',
             style: 'sectionTitle',
             margin: [0, 15, 0, 8] as [number, number, number, number],
             pageBreak: 'before' as const,
         })
-
-        let tableData: any[] = []
-
-        if (isInstallmentView) {
-            // Flatten to installments, filtering by period if available
-            const periodStart = data.period?.startDate ? new Date(data.period.startDate) : null
-            const periodEnd = data.period?.endDate ? new Date(data.period.endDate + 'T23:59:59') : null
-            const statusFilter = config.filters?.customFilters?.parcelaStatus
-
-            const installments = data.contas.flatMap(conta => {
-                return (conta.parcelas || [])
-                    .filter((p: any) => {
-                        // Filter parcelas by period when in installment view
-                        if (periodStart && periodEnd) {
-                            const vencimento = new Date(p.data_vencimento)
-                            if (vencimento < periodStart || vencimento > periodEnd) return false
-                        }
-                        // Filter by status
-                        if (statusFilter && statusFilter.length > 0) {
-                            if (!statusFilter.includes(p.status)) return false
-                        }
-                        return true
-                    })
-                    .map((p: any) => ({
-                        ...p,
-                        conta_descricao: conta.descricao,
-                        fornecedor_nome: conta.fornecedores?.nome,
-                        categoria_nome: conta.tipos_despesa?.nome,
-                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
-                    }))
-            })
-
-            // Sort by due date
-            installments.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
-
-            tableData = installments.map((item) => {
-                const badge = getStatusBadge(item.status)
-                // Infer valor_pago from status since parcelas table has no valor_pago column
-                const valorPago = item.status === 'pago' ? (item.valor_final || 0) : (item.valor_pago || 0)
-                const valorPendente = Math.max(0, (item.valor_final || 0) - valorPago)
-                return {
-                    descricao: truncate(item.conta_descricao, 35),
-                    fornecedor: truncate(item.fornecedor_nome, 20),
-                    categoria: truncate(item.categoria_nome, 15),
-                    valor: formatCurrency(item.valor_final),
-                    valor_pago: formatCurrency(valorPago),
-                    valor_pendente: formatCurrency(valorPendente),
-                    parcelas: item.parcela_info,
-                    status: badge.text,
-                    vencimento: formatDate(item.data_vencimento),
-                    pagamento: item.data_pagamento ? formatDate(item.data_pagamento) : '-',
-                }
-            })
-        } else {
-            // By Account (Standard)
-            tableData = data.contas.map((conta) => {
-                const badge = getStatusBadge(conta.status)
-                return {
-                    descricao: truncate(conta.descricao, 40),
-                    fornecedor: truncate(conta.fornecedores?.nome, 20),
-                    categoria: truncate(conta.tipos_despesa?.nome, 15),
-                    valor: formatCurrency(conta.valor_total),
-                    valor_pago: formatCurrency(conta.valor_pago || 0),
-                    valor_pendente: formatCurrency(conta.valor_pendente ?? Math.max(0, (conta.valor_total || 0) - (conta.valor_pago || 0))),
-                    parcelas: `${conta.parcela_atual || 0}/${conta.total_parcelas || 0}`,
-                    status: badge.text,
-                    vencimento: conta.proxima_parcela?.data_vencimento
-                        ? formatDate(conta.proxima_parcela.data_vencimento)
-                        : '-',
-                    pagamento: '-',
-                }
-            })
-        }
 
         // Define available columns mapping
         const availableColsMap: Record<string, TableColumn> = {

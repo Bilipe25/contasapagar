@@ -323,6 +323,7 @@ export const reportsRouter = router({
             )
 
             if (contasError) {
+                console.error('Accounting statement error:', contasError)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar dados para DRE',
@@ -337,6 +338,7 @@ export const reportsRouter = router({
                 .order('codigo', { ascending: true })
 
             if (planoError) {
+                console.error('Accounting statement plan error:', planoError)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar plano de contas',
@@ -387,6 +389,7 @@ export const reportsRouter = router({
             )
 
             if (error) {
+                console.error('Analytical ledger error:', error)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar razão analítico',
@@ -519,6 +522,7 @@ export const reportsRouter = router({
             )
 
             if (error) {
+                console.error('Tax obligations error:', error)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar obrigações fiscais',
@@ -554,6 +558,7 @@ export const reportsRouter = router({
             )
 
             if (error) {
+                console.error('Financial performance error:', error)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar performance',
@@ -619,6 +624,7 @@ export const reportsRouter = router({
                 .order('data_pagamento', { ascending: false })
 
             if (error) {
+                console.error('Interest discount error:', error)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar juros e descontos',
@@ -662,6 +668,7 @@ export const reportsRouter = router({
             )
 
             if (error) {
+                console.error('Consolidated multi company error:', error)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar consolidado multi-empresa',
@@ -688,7 +695,7 @@ export const reportsRouter = router({
                     .reduce((sum: number, p: any) => sum + (p.valor_final || 0), 0) || 0
                 emp.totalPaid += paid
 
-                const pending = conta.parcelas?.filter((p: any) => p.status === 'pendente' || p.status === 'parcial')
+                const pending = conta.parcelas?.filter((p: any) => p.status === 'pendente' || p.status === 'atrasado')
                     .reduce((sum: number, p: any) => sum + (p.valor_final || 0), 0) || 0
                 emp.totalPending += pending
 
