@@ -1008,9 +1008,10 @@ function enrichConta(conta: any) {
 
     return {
         ...conta,
-        status: statusCalculado, // Sobrescreve o status do banco
-        total_parcelas: totalParcelas, // Usa o total real de parcelas
-        parcela_atual: parcelaAtual, // Número da parcela atual
+        parcelas, // Override with enriched parcelas (with valor_pago/valor_pendente)
+        status: statusCalculado,
+        total_parcelas: totalParcelas,
+        parcela_atual: parcelaAtual,
         parcelas_pagas: parcelasPagas,
         valor_pago: valorPago,
         valor_pendente: valorPendente,
