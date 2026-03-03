@@ -4,7 +4,7 @@ import pdfMake from 'pdfmake/build/pdfmake'
 import type { TDocumentDefinitions } from 'pdfmake/interfaces'
 import { formatCurrency, formatDate } from './pdf-helpers'
 import { generatePDF } from './pdf-generator'
-import { generateSupplierConsolidatedPDF } from './report-generators'
+import { generateMonthlyDetailedPDF, generateSupplierConsolidatedPDF } from './report-generators'
 import {
     generateCategoryAnalysisPDF,
     generateDREPDF,
@@ -63,24 +63,8 @@ async function exportPDF(data: any, config: ExportConfig) {
 
     switch (reportTypeStr) {
         case 'monthly_detailed':
-            // Pass configuration to support dynamic columns
-            docDefinition = await generatePDF({
-                contas: data.contas || [], // Corrected from data.items
-                stats: {
-                    totalAPagar: data.totals?.totalValue || 0,
-                    totalVencidas: data.totals?.overdue || 0,
-                    totalPago: data.totals?.totalPaid || 0,
-                    quantidadePagas: data.totals?.paidCount || 0,
-                    totalJuros: data.totals?.interest || 0,
-                    totalDescontos: data.totals?.discount || 0
-                },
-                periodo: (typeof data.period === 'string' ? data.period :
-                    (data.period instanceof Date ? data.period.toISOString().slice(0, 7) :
-                        (config.period.startDate ? config.period.startDate.toISOString().slice(0, 7) :
-                            new Date().toISOString().slice(0, 7)))),
-                config: config,
-                availableColumns: config.columns?.availableColumns
-            })
+            // Use the proper monthly detailed generator that supports viewMode (BY_INSTALLMENT / BY_ACCOUNT)
+            docDefinition = generateMonthlyDetailedPDF(data, config)
             break
 
         case 'supplier_consolidated':

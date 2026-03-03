@@ -114,15 +114,25 @@ export function generateMonthlyDetailedPDF(
         let tableData: any[] = []
 
         if (isInstallmentView) {
-            // Flatten to installments
+            // Flatten to installments, filtering by period if available
+            const periodStart = data.period?.startDate ? new Date(data.period.startDate) : null
+            const periodEnd = data.period?.endDate ? new Date(data.period.endDate + 'T23:59:59') : null
+
             const installments = data.contas.flatMap(conta => {
-                return (conta.parcelas || []).map((p: any) => ({
-                    ...p,
-                    conta_descricao: conta.descricao,
-                    fornecedor_nome: conta.fornecedores?.nome,
-                    categoria_nome: conta.tipos_despesa?.nome,
-                    parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
-                }))
+                return (conta.parcelas || [])
+                    .filter((p: any) => {
+                        // Filter parcelas by period when in installment view
+                        if (!periodStart || !periodEnd) return true
+                        const vencimento = new Date(p.data_vencimento)
+                        return vencimento >= periodStart && vencimento <= periodEnd
+                    })
+                    .map((p: any) => ({
+                        ...p,
+                        conta_descricao: conta.descricao,
+                        fornecedor_nome: conta.fornecedores?.nome,
+                        categoria_nome: conta.tipos_despesa?.nome,
+                        parcela_info: `${p.numero_parcela}/${conta.total_parcelas}`
+                    }))
             })
 
             // Sort by due date
