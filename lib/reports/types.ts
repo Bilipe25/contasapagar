@@ -144,6 +144,7 @@ export interface FilterConfig {
 
 export interface CustomFilters {
     status?: ('ativa' | 'quitada' | 'cancelada')[]
+    parcelaStatus?: ('pendente' | 'pago' | 'atrasado' | 'cancelado')[]
     supplierIds?: string[]
     categoryIds?: string[]
     bankIds?: string[]

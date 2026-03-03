@@ -957,7 +957,14 @@ function groupByCategory(contas: any[]) {
 
 // Helper para enriquecer dados da conta (mesma lógica de contas.ts)
 function enrichConta(conta: any) {
-    const parcelas = conta.parcelas || []
+    const rawParcelas = conta.parcelas || []
+    // Enrich individual parcelas with valor_pago/valor_pendente based on status
+    const parcelas = rawParcelas.map((p: any) => {
+        const valorPago = p.status === 'pago' ? (p.valor_final || 0) : 0
+        const valorPendente = (p.status === 'pendente' || p.status === 'atrasado')
+            ? (p.valor_final || 0) : 0
+        return { ...p, valor_pago: valorPago, valor_pendente: valorPendente }
+    })
     const totalParcelas = parcelas.length
 
     const parcelasPagas = parcelas.filter((p: any) => p.status === 'pago').length

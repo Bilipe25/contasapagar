@@ -117,14 +117,21 @@ export function generateMonthlyDetailedPDF(
             // Flatten to installments, filtering by period if available
             const periodStart = data.period?.startDate ? new Date(data.period.startDate) : null
             const periodEnd = data.period?.endDate ? new Date(data.period.endDate + 'T23:59:59') : null
+            const statusFilter = config.filters?.customFilters?.parcelaStatus
 
             const installments = data.contas.flatMap(conta => {
                 return (conta.parcelas || [])
                     .filter((p: any) => {
                         // Filter parcelas by period when in installment view
-                        if (!periodStart || !periodEnd) return true
-                        const vencimento = new Date(p.data_vencimento)
-                        return vencimento >= periodStart && vencimento <= periodEnd
+                        if (periodStart && periodEnd) {
+                            const vencimento = new Date(p.data_vencimento)
+                            if (vencimento < periodStart || vencimento > periodEnd) return false
+                        }
+                        // Filter by status
+                        if (statusFilter && statusFilter.length > 0) {
+                            if (!statusFilter.includes(p.status)) return false
+                        }
+                        return true
                     })
                     .map((p: any) => ({
                         ...p,
@@ -140,13 +147,16 @@ export function generateMonthlyDetailedPDF(
 
             tableData = installments.map((item) => {
                 const badge = getStatusBadge(item.status)
+                // Infer valor_pago from status since parcelas table has no valor_pago column
+                const valorPago = item.status === 'pago' ? (item.valor_final || 0) : (item.valor_pago || 0)
+                const valorPendente = Math.max(0, (item.valor_final || 0) - valorPago)
                 return {
                     descricao: truncate(item.conta_descricao, 35),
                     fornecedor: truncate(item.fornecedor_nome, 20),
                     categoria: truncate(item.categoria_nome, 15),
                     valor: formatCurrency(item.valor_final),
-                    valor_pago: formatCurrency(item.valor_pago || 0),
-                    valor_pendente: formatCurrency(Math.max(0, (item.valor_final || 0) - (item.valor_pago || 0))),
+                    valor_pago: formatCurrency(valorPago),
+                    valor_pendente: formatCurrency(valorPendente),
                     parcelas: item.parcela_info,
                     status: badge.text,
                     vencimento: formatDate(item.data_vencimento),

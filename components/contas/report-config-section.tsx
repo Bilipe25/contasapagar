@@ -330,6 +330,59 @@ export function ReportConfigSection({
 
                     <Separator />
 
+                    {/* Filtro de Status */}
+                    <div className="space-y-2">
+                        <Label className="text-sm font-medium">Status das Parcelas/Contas</Label>
+                        <p className="text-xs text-muted-foreground">
+                            Selecione quais status incluir no relatório
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                            {[
+                                { value: 'pendente', label: 'Pendente', color: 'text-yellow-600' },
+                                { value: 'pago', label: 'Pago', color: 'text-green-600' },
+                                { value: 'atrasado', label: 'Atrasado', color: 'text-red-600' },
+                                { value: 'cancelado', label: 'Cancelado', color: 'text-gray-500' },
+                            ].map((status) => {
+                                const currentStatuses = config.filters?.customFilters?.parcelaStatus
+                                const isChecked = !currentStatuses || currentStatuses.includes(status.value as any)
+                                return (
+                                    <div key={status.value} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`status-${status.value}`}
+                                            checked={isChecked}
+                                            onCheckedChange={(checked) => {
+                                                const allStatuses: ('pendente' | 'pago' | 'atrasado' | 'cancelado')[] = ['pendente', 'pago', 'atrasado', 'cancelado']
+                                                const current = config.filters?.customFilters?.parcelaStatus || [...allStatuses]
+                                                let newStatuses: typeof allStatuses
+                                                if (checked) {
+                                                    newStatuses = [...current, status.value as any]
+                                                } else {
+                                                    newStatuses = current.filter(s => s !== status.value)
+                                                }
+                                                // Se todos estão selecionados, limpar (sem filtro = todos)
+                                                const finalStatuses = newStatuses.length === allStatuses.length ? undefined : newStatuses
+                                                updateFilters({
+                                                    customFilters: {
+                                                        ...config.filters?.customFilters,
+                                                        parcelaStatus: finalStatuses,
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                        <Label
+                                            htmlFor={`status-${status.value}`}
+                                            className={cn("cursor-pointer font-normal text-sm", status.color)}
+                                        >
+                                            {status.label}
+                                        </Label>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <Separator />
+
                     {/* Opção específica para DFC */}
                     {reportType === ReportType.CASH_FLOW_STATEMENT && (
                         <div className="flex items-center space-x-2">
