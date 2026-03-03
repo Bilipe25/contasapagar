@@ -179,23 +179,35 @@ export const reportsRouter = router({
                 .eq('contas.user_id', user.id)
                 .gte('data_vencimento', startDate.toISOString().split('T')[0])
                 .lte('data_vencimento', endDate.toISOString().split('T')[0])
-                .in('status', ['pendente', 'parcial'])
+                .in('status', ['pendente', 'atrasado'])
                 .order('data_vencimento', { ascending: true })
 
             if (error) {
+                console.error('Cash flow projection query error:', error)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar projeção de fluxo de caixa',
                 })
             }
 
+            // Calcular valor pendente real por parcela
+            const parcelasComPendente = (parcelas || []).map((p: any) => {
+                const valorPago = p.valor_pago || 0
+                const valorPendente = Math.max(0, (p.valor_final || 0) - valorPago)
+                return {
+                    ...p,
+                    valor_pago: valorPago,
+                    valor_pendente: valorPendente,
+                }
+            })
+
             // Agrupar por mês
-            const byMonth = groupParcelasByMonth(parcelas || [])
+            const byMonth = groupParcelasByMonth(parcelasComPendente)
 
             return {
                 projection: byMonth,
                 totals: {
-                    totalProjected: (parcelas || []).reduce((sum: number, p: any) => sum + (p.valor_final || 0), 0),
+                    totalProjected: parcelasComPendente.reduce((sum: number, p: any) => sum + (p.valor_pendente || 0), 0),
                     count: parcelas?.length || 0,
                 },
                 period: {
@@ -855,14 +867,8 @@ function calculateTotals(contas: any[]) {
     return {
         totalAccounts: contas.length,
         totalValue: contas.reduce((sum, c) => sum + (c.valor_total || 0), 0),
-        totalPaid: contas.reduce((sum, c) => {
-            return sum + (c.parcelas?.filter((p: any) => p.status === 'pago')
-                .reduce((acc: number, p: any) => acc + (p.valor_final || 0), 0) || 0)
-        }, 0),
-        totalPending: contas.reduce((sum, c) => {
-            return sum + (c.parcelas?.filter((p: any) => p.status === 'pendente' || p.status === 'parcial')
-                .reduce((acc: number, p: any) => acc + (p.valor_final || 0), 0) || 0)
-        }, 0),
+        totalPaid: contas.reduce((sum, c) => sum + (c.valor_pago || 0), 0),
+        totalPending: contas.reduce((sum, c) => sum + (c.valor_pendente || 0), 0),
         totalInstallments: contas.reduce((sum, c) => sum + (c.parcelas?.length || 0), 0),
     }
 }
@@ -1020,12 +1026,14 @@ function groupParcelasByMonth(parcelas: any[]) {
                 month: monthKey,
                 installments: [],
                 totalValue: 0,
+                totalPending: 0,
                 count: 0,
             }
         }
 
         grouped[monthKey].installments.push(parcela)
         grouped[monthKey].totalValue += parcela.valor_final || 0
+        grouped[monthKey].totalPending += parcela.valor_pendente || parcela.valor_final || 0
         grouped[monthKey].count++
     })
 

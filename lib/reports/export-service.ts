@@ -454,11 +454,13 @@ async function exportExcel(data: any, config: ExportConfig) {
         case 'cash_flow_projection': {
             let saldoAcumulado = 0
             const projRows = (data.projection || []).map((p: any) => {
-                saldoAcumulado += (p.totalValue || 0)
+                const pendente = p.totalPending ?? p.totalValue ?? 0
+                saldoAcumulado += pendente
                 return {
                     mes: p.month || '-',
                     qtd: p.count || 0,
-                    valor: p.totalValue || 0,
+                    valor_total: p.totalValue || 0,
+                    valor_pendente: pendente,
                     saldo: saldoAcumulado,
                 }
             })
@@ -466,13 +468,14 @@ async function exportExcel(data: any, config: ExportConfig) {
                 title: 'Projeção de Fluxo de Caixa',
                 period: { startDate: data.period.startDate, endDate: data.period.endDate },
                 summary: [
-                    { label: 'Total Projetado', value: formatCurrency(data.totals?.totalProjected || 0) },
+                    { label: 'Total Projetado (Pendente)', value: formatCurrency(data.totals?.totalProjected || 0) },
                     { label: 'Parcelas', value: data.totals?.count || 0 },
                 ],
                 columns: [
                     { header: 'Mês', key: 'mes', width: 14 },
                     { header: 'Parcelas', key: 'qtd', width: 12 },
-                    { header: 'Valor', key: 'valor', width: 20 },
+                    { header: 'Valor Total', key: 'valor_total', width: 20 },
+                    { header: 'Valor Pendente', key: 'valor_pendente', width: 20 },
                     { header: 'Saldo Acumulado', key: 'saldo', width: 20 },
                 ],
                 data: projRows
