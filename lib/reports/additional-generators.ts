@@ -555,21 +555,36 @@ export function generateCashFlowProjectionPDF(
 }
 
 interface OverdueReportData {
-    items: Array<{
+    overdue: Array<{
         data_vencimento: string
-        descricao: string
-        fornecedores?: { nome: string }
+        daysOverdue: number
+        valor_original: number
         valor_final: number
-        dias_atraso: number
-        valor_corrigido: number
+        valor_pendente: number
+        valor_pago: number
+        valor_juros: number
+        valor_desconto: number
+        status: string
+        contas?: {
+            descricao: string
+            fornecedores?: { nome: string; telefone?: string }
+            tipos_despesa?: { nome: string; cor?: string }
+            empresas?: { nome: string }
+            bancos?: { nome: string }
+        }
     }>
+    byRange: any
     totals: {
-        count: number
+        total: number
         totalOriginal: number
-        totalCorrected: number
-        totalInterest: number
-        totalPenalty: number
+        totalFinal: number
+        totalPago: number
+        totalPendente: number
+        totalJuros: number
+        totalDesconto: number
+        count: number
     }
+    asOfDate: string
     period: {
         startDate: string
         endDate: string
@@ -590,8 +605,8 @@ export function generateOverdueReportPDF(
         title: 'Relatório de Contas Vencidas',
         subtitle: 'Análise de Inadimplência e Aging',
         period: {
-            start: data.period.startDate,
-            end: data.period.endDate,
+            start: data.period?.startDate || data.asOfDate,
+            end: data.period?.endDate || data.asOfDate,
         },
         generatedAt: new Date(),
         reportStyle: 'professional',
@@ -599,6 +614,8 @@ export function generateOverdueReportPDF(
 
     const content: any[] = []
     content.push(generateReportHeader(headerOptions))
+
+    const items = data.overdue || []
 
     // Calculate aging analysis
     const agingData = {
@@ -608,9 +625,9 @@ export function generateOverdueReportPDF(
         days90Plus: 0,
     }
 
-    data.items.forEach(item => {
-        const dias = item.dias_atraso || 0
-        const valor = item.valor_final || 0
+    items.forEach(item => {
+        const dias = item.daysOverdue || 0
+        const valor = item.valor_pendente || 0
         if (dias <= 0) agingData.current += valor
         else if (dias <= 30) agingData.days30 += valor
         else if (dias <= 60) agingData.days60 += valor
@@ -618,10 +635,10 @@ export function generateOverdueReportPDF(
     })
 
     // Critical Alert if high overdue amount
-    const criticalThreshold = data.totals.totalOriginal * 0.3
-    if (agingData.days90Plus > criticalThreshold) {
+    const totalPendente = data.totals?.totalPendente || 0
+    if (totalPendente > 0 && agingData.days90Plus > totalPendente * 0.3) {
         content.push(generateAlertBox(
-            `⚠️ ATENÇÃO: ${formatCurrency(agingData.days90Plus)} em contas vencidas há mais de 90 dias (${((agingData.days90Plus / data.totals.totalOriginal) * 100).toFixed(1)}% do total)`,
+            `⚠️ ATENÇÃO: ${formatCurrency(agingData.days90Plus)} em contas vencidas há mais de 90 dias (${((agingData.days90Plus / totalPendente) * 100).toFixed(1)}% do total)`,
             'danger'
         ))
     }
@@ -629,21 +646,21 @@ export function generateOverdueReportPDF(
     // KPIs Section
     content.push(generateKPISection([
         {
-            label: 'Total Vencido',
-            value: formatCurrency(data.totals.totalOriginal),
-            subtext: `${data.totals.count} contas`,
+            label: 'Saldo Pendente',
+            value: formatCurrency(data.totals?.totalPendente || 0),
+            subtext: `${data.totals?.count || 0} parcelas`,
             color: REPORT_COLORS.danger
         },
         {
-            label: 'Encargos Estimados',
-            value: formatCurrency(data.totals.totalInterest + data.totals.totalPenalty),
-            subtext: 'multa + juros',
+            label: 'Valor Original',
+            value: formatCurrency(data.totals?.totalOriginal || 0),
+            subtext: 'sem juros/desconto',
             color: REPORT_COLORS.warning
         },
         {
-            label: 'Valor Corrigido',
-            value: formatCurrency(data.totals.totalCorrected),
-            subtext: 'total atualizado',
+            label: 'Já Pago',
+            value: formatCurrency(data.totals?.totalPago || 0),
+            subtext: 'pagamentos parciais',
             color: REPORT_COLORS.textPrimary
         },
     ]))
@@ -664,37 +681,40 @@ export function generateOverdueReportPDF(
     })
 
     // Sort by days overdue (most critical first)
-    const sortedItems = [...data.items].sort((a, b) => (b.dias_atraso || 0) - (a.dias_atraso || 0))
+    const sortedItems = [...items].sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0))
 
     const tableData = sortedItems.map((item) => {
-        const dias = item.dias_atraso || 0
+        const dias = item.daysOverdue || 0
         let urgencyIcon = ''
         if (dias > 90) urgencyIcon = '🔴'
         else if (dias > 60) urgencyIcon = '🟠'
         else if (dias > 30) urgencyIcon = '🟡'
         else urgencyIcon = '🟢'
 
+        const descricao = item.contas?.descricao || '-'
+        const fornecedor = item.contas?.fornecedores?.nome || 'N/A'
+
         return {
             urgencia: urgencyIcon,
             vencimento: formatDate(item.data_vencimento),
             dias: dias,
-            descricao: item.descricao?.substring(0, 35) + (item.descricao?.length > 35 ? '...' : ''),
-            fornecedor: item.fornecedores?.nome?.substring(0, 20) || 'N/A',
-            valor: formatCurrency(item.valor_final),
-            encargos: formatCurrency((item.valor_corrigido || item.valor_final) - item.valor_final),
-            valor_corr: formatCurrency(item.valor_corrigido || item.valor_final),
+            descricao: descricao.substring(0, 35) + (descricao.length > 35 ? '...' : ''),
+            fornecedor: fornecedor.substring(0, 20),
+            valor_orig: formatCurrency(item.valor_original || 0),
+            valor_pago: formatCurrency(item.valor_pago || 0),
+            valor_pend: formatCurrency(item.valor_pendente || 0),
         }
     })
 
     const columns: TableColumn[] = [
         { header: '!', dataKey: 'urgencia', width: 20, alignment: 'center' },
         { header: 'Vencimento', dataKey: 'vencimento', width: 65, alignment: 'center' },
-        { header: 'Dias', dataKey: 'dias', width: 35, alignment: 'center' },
+        { header: 'Dias', dataKey: 'dias', width: 30, alignment: 'center' },
         { header: 'Descrição', dataKey: 'descricao', width: '*', alignment: 'left' },
-        { header: 'Fornecedor', dataKey: 'fornecedor', width: 90, alignment: 'left' },
-        { header: 'Valor Orig.', dataKey: 'valor', width: 70, alignment: 'right' },
-        { header: 'Encargos', dataKey: 'encargos', width: 60, alignment: 'right' },
-        { header: 'Valor Atual', dataKey: 'valor_corr', width: 70, alignment: 'right' },
+        { header: 'Fornecedor', dataKey: 'fornecedor', width: 80, alignment: 'left' },
+        { header: 'Valor Orig.', dataKey: 'valor_orig', width: 65, alignment: 'right' },
+        { header: 'Pago', dataKey: 'valor_pago', width: 55, alignment: 'right' },
+        { header: 'Pendente', dataKey: 'valor_pend', width: 65, alignment: 'right' },
     ]
 
     content.push(generateTable(tableData, columns, { headerBgColor: REPORT_COLORS.danger }))

@@ -480,7 +480,9 @@ async function exportExcel(data: any, config: ExportConfig) {
                 period: { startDate: data.asOfDate, endDate: data.asOfDate },
                 summary: [
                     { label: 'Total de Parcelas', value: data.totals?.count || 0 },
-                    { label: 'Valor Total Vencido', value: formatCurrency(data.totals?.total || 0) },
+                    { label: 'Saldo Pendente Total', value: formatCurrency(data.totals?.totalPendente || 0) },
+                    { label: 'Valor Original Total', value: formatCurrency(data.totals?.totalOriginal || 0) },
+                    { label: 'Já Pago', value: formatCurrency(data.totals?.totalPago || 0) },
                     { label: 'Data Referência', value: formatDate(data.asOfDate) },
                 ],
                 columns: [
@@ -488,7 +490,9 @@ async function exportExcel(data: any, config: ExportConfig) {
                     { header: 'Dias Atraso', key: 'dias', width: 12 },
                     { header: 'Descrição', key: 'descricao', width: 28 },
                     { header: 'Fornecedor', key: 'fornecedor', width: 22 },
-                    { header: 'Valor', key: 'valor', width: 16 },
+                    { header: 'Valor Original', key: 'valor_original', width: 16 },
+                    { header: 'Valor Pago', key: 'valor_pago', width: 16 },
+                    { header: 'Saldo Pendente', key: 'valor_pendente', width: 16 },
                     { header: 'Status', key: 'status', width: 12 },
                 ],
                 data: (data.overdue || []).map((i: any) => ({
@@ -496,7 +500,9 @@ async function exportExcel(data: any, config: ExportConfig) {
                     dias: i.daysOverdue || 0,
                     descricao: i.contas?.descricao || '-',
                     fornecedor: i.contas?.fornecedores?.nome || '-',
-                    valor: i.valor_final || 0,
+                    valor_original: i.valor_original || 0,
+                    valor_pago: i.valor_pago || 0,
+                    valor_pendente: i.valor_pendente || 0,
                     status: i.status || '-',
                 }))
             })
@@ -932,13 +938,15 @@ async function exportCSV(data: any, config: ExportConfig) {
         }
 
         case 'overdue_report':
-            headers = ['Vencimento', 'Dias Atraso', 'Descrição', 'Fornecedor', 'Valor', 'Status']
+            headers = ['Vencimento', 'Dias Atraso', 'Descrição', 'Fornecedor', 'Valor Original', 'Valor Pago', 'Saldo Pendente', 'Status']
             csvData = (data.overdue || []).map((i: any) => ({
                 vencimento: formatDate(i.data_vencimento),
                 dias_atraso: i.daysOverdue || 0,
                 descricao: i.contas?.descricao || '-',
                 fornecedor: i.contas?.fornecedores?.nome || '-',
-                valor: i.valor_final || 0,
+                valor_original: i.valor_original || 0,
+                valor_pago: i.valor_pago || 0,
+                saldo_pendente: i.valor_pendente || 0,
                 status: i.status || '-',
             }))
             break

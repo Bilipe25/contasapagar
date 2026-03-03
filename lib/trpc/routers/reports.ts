@@ -230,7 +230,7 @@ export const reportsRouter = router({
         `)
                 .eq('contas.user_id', user.id)
                 .lt('data_vencimento', format(asOfDate, 'yyyy-MM-dd'))
-                .in('status', ['pendente', 'parcial'])
+                .in('status', ['pendente', 'atrasado'])
                 .order('data_vencimento', { ascending: true })
 
             if (error) {
@@ -240,24 +240,53 @@ export const reportsRouter = router({
                 })
             }
 
-            // Calcular dias de atraso e agrupar
-            const overdueWithDays = (parcelas || []).map((p) => {
+            // Calcular dias de atraso e valor pendente real
+            const overdueWithDays = (parcelas || []).map((p: any) => {
                 const vencimento = parseISO(p.data_vencimento)
                 const daysOverdue = Math.floor((asOfDate.getTime() - vencimento.getTime()) / (1000 * 60 * 60 * 24))
-                return { ...p, daysOverdue }
+                // valor_pendente = valor_final menos o que já foi pago (valor_pago)
+                const valorPago = p.valor_pago || 0
+                const valorPendente = Math.max(0, (p.valor_final || 0) - valorPago)
+                return {
+                    ...p,
+                    daysOverdue,
+                    valor_pago: valorPago,
+                    valor_pendente: valorPendente,
+                }
             })
 
             // Agrupar por faixas de atraso
             const byRange = groupByOverdueRange(overdueWithDays)
 
+            // Calcular totais detalhados
+            const totalOriginal = overdueWithDays.reduce((sum: number, p: any) => sum + (p.valor_original || 0), 0)
+            const totalFinal = overdueWithDays.reduce((sum: number, p: any) => sum + (p.valor_final || 0), 0)
+            const totalPago = overdueWithDays.reduce((sum: number, p: any) => sum + (p.valor_pago || 0), 0)
+            const totalPendente = overdueWithDays.reduce((sum: number, p: any) => sum + (p.valor_pendente || 0), 0)
+            const totalJuros = overdueWithDays.reduce((sum: number, p: any) => sum + (p.valor_juros || 0), 0)
+            const totalDesconto = overdueWithDays.reduce((sum: number, p: any) => sum + (p.valor_desconto || 0), 0)
+
+            const asOfDateStr = format(asOfDate, 'yyyy-MM-dd')
+
             return {
                 overdue: overdueWithDays,
                 byRange,
                 totals: {
-                    total: overdueWithDays.reduce((sum: number, p: any) => sum + (p.valor_final || 0), 0),
+                    total: totalPendente,
+                    totalOriginal,
+                    totalFinal,
+                    totalPago,
+                    totalPendente,
+                    totalJuros,
+                    totalDesconto,
                     count: overdueWithDays.length,
                 },
-                asOfDate: format(asOfDate, 'yyyy-MM-dd'),
+                asOfDate: asOfDateStr,
+                // Compatibilidade com geradores que esperam period
+                period: {
+                    startDate: asOfDateStr,
+                    endDate: asOfDateStr,
+                },
             }
         }),
 
