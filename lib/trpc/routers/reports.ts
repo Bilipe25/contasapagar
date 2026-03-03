@@ -224,7 +224,7 @@ export const reportsRouter = router({
             user_id,
             fornecedores(nome, telefone),
             tipos_despesa(nome, cor),
-            empresas(nome),
+            empresas(razao_social, nome_fantasia),
             bancos(nome)
           )
         `)
@@ -234,6 +234,7 @@ export const reportsRouter = router({
                 .order('data_vencimento', { ascending: true })
 
             if (error) {
+                console.error('Overdue report query error:', error)
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Erro ao buscar contas vencidas',
